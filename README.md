@@ -3,6 +3,8 @@ Wedgeberry is a single script that provides an interactive menu to configure a R
 
 The primary intended use case is to forward network traffic from Wifi connected devices into [mitmproxy](https://mitmproxy.org/) and have the egress traffic routed over a VPN or Tor network to provide a degree of anonymity while testing. 
 
+![wedge-diagram](/images/connectivity.png)
+
 Currently the following can be configured via the `wedge-config` interactive menu:
 
 - Wifi access point with DHCP 
@@ -15,7 +17,7 @@ Currently the following can be configured via the `wedge-config` interactive men
 
 The script was motivated by the Raspberry Pi `raspi-config` tool which provides an accessible way to configure a Pi. Here we provide an easy and quick way to configure a Pi into a Wifi access point that supports various traffic forwarding options along with common tooling for IoT / mobile device security research / testing.
 
-![wedge-config](wedge.png)
+![wedge-config](/images/wedge.png)
 
 # Installation
 
