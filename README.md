@@ -17,7 +17,8 @@ The script was motivated by the Raspberry Pi `raspi-config` tool which provides 
 
 From a Raspberry Pi:
 ```
-wget https://github.com/haxrob/wedgeberry/..
+wget https://github.com/haxrob/wedgeberry/releases/download/v0.01/wedge-conf.sh
+
 sudo ./wedge-config.sh
 ```
 
@@ -45,5 +46,7 @@ Run with `-d` flag to write bash verbose output to logfile
 - **Termshark** - Install or run termshark.io (cli based wireshark clone)
 
 **Healthcheck** - Checks status of configuration and software services 
+
 **Update** - Check and update script to latest version
+
 **Uninstall** - Reverts configurations applied and optionally uninstalls packages
