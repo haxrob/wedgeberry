@@ -1,5 +1,7 @@
 # wedgeberry
-Wedgeberry is a single script that provides an interactive menu to configure a Raspberry Pi into a IoT / mobile device network monitoring and interception tool. Think of it like a "network lab in a box" with the box being a Raspberry Pi.
+Wedgeberry is a single script that provides an interactive menu to configure a Raspberry Pi into a IoT / mobile device network monitoring and interception tool. Think of it like a "network lab in a box" with the box being an off the shelf Raspberry Pi. 
+
+The primary intended use case is to forward network traffic from Wifi connected devices into [mitmproxy](https://mitmproxy.org/) and have the egress traffic routed over a VPN or Tor network to provide a degree of anonymity.
 
 Currently the following can be configured via the `wedge-config` interactive menu:
 
