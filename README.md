@@ -17,8 +17,7 @@ The script was motivated by the Raspberry Pi `raspi-config` tool which provides 
 
 From a Raspberry Pi:
 ```
-wget https://github.com/haxrob/wedgeberry/releases/download/v0.01/wedge-conf.sh
-
+wget https://raw.githubusercontent.com/haxrob/wedgeberry/main/wedge-config.sh
 sudo ./wedge-config.sh
 ```
 
@@ -50,3 +49,9 @@ Run with `-d` flag to write bash verbose output to logfile
 **Update** - Check and update script to latest version
 
 **Uninstall** - Reverts configurations applied and optionally uninstalls packages
+
+# Compatibility
+
+Two interfaces are required - All Pi models that support Wifi should work out of the box except the Pi W. Here an additional interface card is required to be connected.
+
+It is recommended to use [latest Raspberry Pi images](https://www.raspberrypi.com/software/operating-systems/). This software has only been tested on the Rasperry Pi image `Debian GNU/Linux 12 (bookworm)`.
