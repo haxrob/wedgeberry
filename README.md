@@ -1,5 +1,5 @@
 # wedgeberry
-Wedgeberry is a single script that provides an interactive menu to configure a Raspberry Pi into a Wifi transparent proxy to support traffic inspection and tampering.
+Wedgeberry is a single script that provides an interactive menu to configure a Raspberry Pi into a IoT / mobile device network monitoring and interception tool. Think of it like a "network lab in a box" with the box being a Raspberry Pi.
 
 Currently the following can be configured via the `wedge-config` interactive menu:
 
