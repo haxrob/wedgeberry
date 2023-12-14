@@ -59,9 +59,7 @@ function main_menu {
 }
 
 function is_not_setup() {
-   # TODO
-   return 0
-   if [ $STATUS_STATE -ne 1 ]; then
+   if [ "$STATUS_STATE" -ne 1 ]; then
       if yesno_box 8 "Initial setup has not been run. Would you like to run it now?"; then
          ap_setup_menu
          return 1
@@ -116,7 +114,7 @@ function ap_setup_menu() {
 
 function tools_menu() {
    options=(
-     "1 MITMProxy" ""
+     "1 MITMProxy" "Transparent proxy traffic inspection"
      "2 Termshark" "(wireshark-like)"
      "3 Back" "Return to previous menu"
    )
