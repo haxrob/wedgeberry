@@ -9,6 +9,8 @@ Currently the following can be configured via the `wedge-config` interactive men
 - Forward TCP ports (and DNS) via the Tor network
 - Forward TCP ports to external interception proxy (BurpSuite) 
 
+`wedge-config.sh` will handle all the required package installs, `iptables` rules, `ip route` rules and systemd services for persistance (including mitmproxy).
+
 The script was motivated by the Raspberry Pi `raspi-config` tool which provides an accessible way to configure a Pi. Here we provide an easy and quick way to configure a Pi into a Wifi access point that supports various traffic forwarding options along with common tooling for IoT / mobile device security research / testing.
 
 ![wedge-config](wedge.png)
@@ -21,9 +23,13 @@ wget https://raw.githubusercontent.com/haxrob/wedgeberry/main/wedge-config.sh
 sudo ./wedge-config.sh
 ```
 
-Note, to build `wedge-config.sh` from this repository, run `make` to generate `./wedge-config.sh`
-
-Run with `-d` flag to write bash verbose output to logfile
+Note, to build `wedge-config.sh` from this repository, run
+```
+make clean
+make
+sudo ./wedge-config.sh
+```
+Run with `-d` flag to write bash verbose output to logfile `wedge-debug.log` within the current working directory.
 
 # Menu items
 

@@ -22,7 +22,6 @@ function conf_dnsmasq() {
       "log-facility=${DNS_LOG_FILE}"
    )
 
-   echo "writing to ${dnsmasq_conf}"
    printf '%s\n' "${dnsmasq_contents[@]}" | sed '/^$/d' > $dnsmasq_conf
 
 }

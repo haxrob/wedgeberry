@@ -171,8 +171,10 @@ function  interactive_wireguard_conf() {
 ################################################################################
 function wireguard_up {
    set_conf_param TUNNEL_TYPE WIREGUARD
-   wg-quick down $WG_IFACE
-   local output=$(wg-quick up $WG_IFACE 2>&1)
+   if wireguard_is_iface_setup; then
+      wg-quick down $WG_IFACE
+   fi
+   output=$(wg-quick up $WG_IFACE 2>&1)
    if [[ $output =~ .*error.* ]]; then
       msg_box_scroll "error:\n${output}"
       if yesno_box 8 "Configure again?"; then
