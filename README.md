@@ -1,7 +1,5 @@
 # wedgeberry
-Wedgeberry is a single script that provides an interactive menu to configure a Raspberry Pi into a IoT / mobile device network monitoring and interception tool. Think of it like a "network lab in a box" with the box being an off the shelf Raspberry Pi. 
-
-The primary intended use case is to forward network traffic from Wifi connected devices into [mitmproxy](https://mitmproxy.org/) and have the egress traffic routed over a VPN or Tor network to provide a degree of anonymity while testing. 
+Wedgeberry is a single script that provides an interactive menu to configure a Raspberry Pi into a IoT / mobile device network monitoring tool for use with [mitmproxy](https://mitmproxy.org/). With Wedgeberry, you can convert a Pi into a Wifi access point running mitmproxy and have egress traffic routed over a variety of options such as Wireguard VPN, Tor network or an upstream BurpSuite proxy instance. 
 
 ![wedge-diagram](/images/connectivity.png)
 
@@ -15,7 +13,7 @@ Currently the following can be configured via the `wedge-config` interactive men
 
 `wedge-config.sh` will handle all the required package installs, `iptables` rules, `ip route` rules and systemd services for persistance (including mitmproxy).
 
-The script was motivated by the Raspberry Pi `raspi-config` tool which provides an accessible way to configure a Pi. Here we provide an easy and quick way to configure a Pi into a Wifi access point that supports various traffic forwarding options along with common tooling for IoT / mobile device security research / testing.
+The script was motivated by the Raspberry Pi `raspi-config` tool which provides an accessible way to configure a Pi. 
 
 ![wedge-config](/images/wedge.png)
 
@@ -34,6 +32,13 @@ make
 ```
 
 Run with `-d` flag to write bash verbose output to logfile `wedge-debug.log` within the current working directory.
+
+## Notes
+- `mitmproxy` is installed to `/opt/mitmproxy` with `mitmweb` running as a service as `mitmproxy` user
+- DNS requests from `dnsmasq` are logged to `/root/wedge-dns.log`
+- Internal configuration file is written to `$HOME/.config/wedge.conf`
+
+## Services
 
 # Menu items
 
