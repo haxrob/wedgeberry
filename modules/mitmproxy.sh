@@ -1,33 +1,4 @@
 
-function mitmproxy_setup() {
-
-   options=()
-   
-   user=$(who am i | awk '{print $1}')
-   sudo -u $user pipx list 2>/dev/null | grep -q mitmproxy
-   if [ $? -eq 0 ] || [ $MITMWEB_SERVICE -eq 1 ] ; then 
-      if [ $(iptables -L -t nat | grep -q MITMPROXY)$? -ne 0 ]; then
-         options+=( "1 Enable" "Enable port forwarding to MITMproxy" )
-      else
-         options+=( "1 Disable" "Disable forwarding to MITMProxy" )
-      fi
-      options+=( "2 Uninstall" "Remove MITMProxy packages" )
-   else
-      options+=( "1 Install" "Install MITMProxy" )
-   fi
-
-   choice=$(menu "Select options configure" options)
-   if [ $? -ne 0 ]; then
-      return
-   fi
-   case $choice in
-      1\ Enable) set_mitmproxy_iptables;;
-      1\ Disable) unset_mitmproxy_iptables;;
-      1\ Install) mitmproxy_install;;
-      2\ Uninstall) mitmproxy_uninstall;;
-   esac
-
-}
 
 ################################################################################
 # set ports to redirect to mitmproxy service
@@ -54,6 +25,10 @@ function set_mitmproxy_iptables() {
       done
    done
    set_conf_param MITMPROXY_ENABLED 1
+   
+   # remove any prior rules
+   iptables-save | grep -v WEDGE_MITMPROXY | iptables-restore
+
    for port in ${ports//,/ }; do
       iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --dport $port -j  REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
       iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --dport $port -j REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
@@ -76,37 +51,24 @@ function unset_mitmproxy_iptables() {
    return
 }
 
-function mitmproxy_install() {
-   if ! is_installed pipx; then
-      msg_box 8 "pipx is required to install mitmproxy - will install"
-      sudo apt update
-      apt-get -y install pipx
-   fi
-
-   if yesno_box 8 "Would you like to install mitmweb as a system service? Selecting yes will install mitmproxy into /opt/mitmproxy"; then
-      mitmweb_install_service
-      return
-   fi
-   # as script is being run as sudo, get the user that invoked sudo, otherwise everything
-   # will be installed under /root
-   user=$(who am i | awk '{print $1}')
-
-   sudo -u $user pipx list | grep -q mitmproxy
-   if [ $? -ne 0 ]; then
-      msg_box 8 "mitmproxy will be installed user '${user}'"
-      sudo -u $user pipx install mitmproxy
-      sudo -u $user pipx ensurepath
-   fi
-}
-
 function mitmproxy_uninstall() {
-   user=$(who am i | awk '{print $1}')
-   sudo -u $user pipx uninstall mitmproxy
+   sudo -u mitmproxy pipx uninstall mitmproxy
    set_conf_param MITMPROXY_ENABLED 0 
    unset_mitmproxy_iptables
 }
 
 function mitmweb_install_service() {
+   if ! is_installed pipx; then
+      msg_box 8 "pipx is required to install mitmproxy. Continue?"
+      sudo apt update
+      apt-get -y install pipx
+   else
+      return
+   fi
+
+   if ! msg_box 8 "mitmproxy will be installed under /opt/mitmproxy. mitmweb will be run as a systemd service 'mitmweb.service'. Continue?"; then
+      return
+   fi
    mkdir /opt/mitmproxy
    addgroup --system mitmproxy
    adduser --system --home /opt/mitmproxy --shell /usr/sbin/nologin --no-create-home --gecos 'mitmproxy' --ingroup mitmproxy --disabled-login --disabled-password mitmproxy
@@ -164,9 +126,24 @@ function mitmweb_install_service() {
    msg_box 8 "mitmweb can be accessed on http://${mitmweb_listen_addr}:8081"
 }
 
+function mitmproxy_is_redirected() {
+
+   # mitmweb is runnning and redirection rules in nat table configured
+   if pgrep mitmweb > /dev/null; then 
+      if iptables -L -t nat | grep WEDGE_MITMPROXY > /dev/null 2>&1; then
+         i=$(iptables -n -L -t nat | grep WEDGE_MITMPROXY | grep dpt | awk '{ print $7 }' | cut -d':' -f2 | sort -u | tr '\n' ',')
+         # remove trailing , character
+         echo "${i::-1}"
+         return 0
+      fi
+   fi
+   return 1
+}
 function remove_mitmweb_service() {
    systemctl stop mitmweb.service
    rm /etc/systemd/system/mitmproxy.service
    systemctl daemon-reload
+   unset_mitmproxy_iptables
    set_conf_param MITMWEB_SERVICE 0
 }
+

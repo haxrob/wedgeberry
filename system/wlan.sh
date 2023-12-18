@@ -5,6 +5,7 @@ DEFAULT_WIFI_CHANNEL=11
 DEFAULT_SSID=wedge-ap
 DEFAULT_WIFI_PASSWORD="012345678"
 
+hostap_conf="/etc/hostapd/hostapd.conf"
 ################################################################################
 # present a list of country codes in a menu
 # returns: 0 OK
@@ -42,7 +43,6 @@ function setup_hostap() {
       fi
       raspi-config nonint do_wifi_country "$regdomain"
    fi
-   hostap_conf="/etc/hostapd/hostapd.conf"
 
    if [[ ! $USE_DEFAULTS ]]; then
 
@@ -78,7 +78,7 @@ function setup_hostap() {
       len=${#AP_PASSWORD}
       while [[ $len -ne 0 ]] && [[ $len -le 7 ]]; do
          msg_box "Password must be longer or equal to 8 characters"
-         AP_PASSWORD=$(input_box "Wifi password. Empty if none")
+         AP_PASSWORD=$(input_box "Wifi password. Empty i.*f none")
          if [ $? -ne 0 ]; then
             return 1
          fi
@@ -243,3 +243,39 @@ function cleanup_hostapd() {
    rm -f /etc/default/hostapd
    rm -f /etc/hostapd/hostapd.conf
 }
+
+function toggle_hostapd() {
+   if systemctl status hostapd > /dev/null; then
+      systemctl stop hostapd
+   else
+      if systemctl start hostapd; then 
+         msg_box 8 "wlan access point started"
+      else
+         msg_box 8 "wlan access point stopped"
+      fi 
+   fi
+}
+
+function set_ssid() {
+   ssid="$1"
+   sed -i "s/ssid=.*/ssid=${ssid}/" $hostap_conf
+   if ! systemctl restart hostapd; then
+      msg_box 8 "Error (re)starting hostapd service!"
+   fi
+}
+function set_random_ssid() {
+   local ssid=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-10} | head -n 1)
+   if yesno_box 8 "SSID will be changed to: ${ssid}. Continue?"; then
+      set_ssid $ssid
+   fi
+}
+
+function set_ssid_text() {
+   ssid=$(input_box "Enter Wifi SSID" "$(ssid_from_config)")
+   set_ssid $ssid 
+}
+
+function ssid_from_config() {
+   grep -oP 'ssid=\K.+' /etc/hostapd/hostapd.conf
+}
+

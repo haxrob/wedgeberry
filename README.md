@@ -23,16 +23,16 @@ The script was motivated by the Raspberry Pi `raspi-config` tool which provides 
 
 From a Raspberry Pi:
 ```
-wget https://raw.githubusercontent.com/haxrob/wedgeberry/main/wedge-config.sh
+wget https://raw.githubusercontent.com/haxrob/wedgeberry/main/wedge-conf.sh
 sudo ./wedge-config.sh
 ```
 
-Note, to build `wedge-config.sh` from this repository, run
+Note, `wedge-config.sh` is 'build' by merging multiple bash scripts. Do not edit it directly. To build `wedge-config.sh` from this repository, run
 ```
 make clean
 make
-sudo ./wedge-config.sh
 ```
+
 Run with `-d` flag to write bash verbose output to logfile `wedge-debug.log` within the current working directory.
 
 # Menu items

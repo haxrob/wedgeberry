@@ -14,7 +14,8 @@ function disable_egress_services() {
 
    # a hammer
    iptables -F
-   iptables -F -t nat
+
+   iptables-save | grep -v WEDGE_TUNNEL | iptables-restore
 
    # tor
    if [[ $(systemctl is-active tor) = "active" ]]; then
@@ -38,11 +39,14 @@ function disable_egress_services() {
 function start_services {
 
    # hostapd
-   if [[ $(systemctl is-enabled hostapd.service) != "enabled" ]]; then
-      systemctl unmask hostapd.service
-      systemctl enable --now hostapd.service
+   if pgrep hostapd > /dev/null; then
+      systemctl restart hostapd
+   else
+      if [[ $(systemctl is-enabled hostapd.service) != "enabled" ]]; then
+         systemctl unmask hostapd.service
+         systemctl enable --now hostapd.service
+      fi
    fi
-
    # resolved TODO: (is this only required for wireguard)
    if [[ $(systemctl is-active systemd-resolved) = "active" ]]; then
       echo "stopping systemd-resolved"
@@ -51,10 +55,12 @@ function start_services {
    fi 
 
    # dnsmasq
-   systemctl restart dnsmasq
+   systemctl enable --now dnsmasq
+   #systemctl restart dnsmasq
 
    # dhcpcd
-   systemctl restart dhcpcd
+   systemctl enable --now dhcpcd
+   #systemctl restart dhcpcd
 }
 
 ################################################################################

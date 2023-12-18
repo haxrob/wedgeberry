@@ -4,9 +4,17 @@
 # returns 0
 ################################################################################
 function set_tor_iptables() {
+
+   # TODO: why flush?
    iptables -F
-   iptables -t nat -F
+
+   # remove prior tunnel related iptables rules
+   iptables-save | grep -v WEDGE_TUNNEL | iptables-restore
+
+   # redirect DNS
    iptables -t nat -A PREROUTING -i $WLAN_IFACE -p udp --dport 53 -j REDIRECT --to-ports 53 -m comment --comment WEDGE_TUNNEL_TOR
+
+   # redirect all TCP
    iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --syn -j REDIRECT --to-ports 9040 -m comment --comment WEDGE_TUNNEL_TOR
 }
 

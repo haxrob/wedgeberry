@@ -17,9 +17,7 @@ function uninstall() {
 
    stop_services
 
-   if [ -z "$MITM_SERVICE" ] && [ "$MITMWEB_SERVICE" -eq 1 ]; then
-      remove_mitmweb_service
-   fi
+   remove_mitmweb_service
 
    set_conf_param STATUS_STATE 0
    if ! yesno_box 8 "Remove all installed software packages?"; then

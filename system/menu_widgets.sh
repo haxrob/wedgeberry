@@ -41,10 +41,11 @@ function menu() {
    local l="${#opts[@]}"
    local len=$(($l / 2))
    local cancel_text="$3"
+   
    if [ -z "$cancel_text" ]; then
       cancel_text="Back"
    fi
-   whiptail --title "${WHIP_TITLE}" --menu --cancel-button "$cancel_text" --ok-button Select "$1" 20 80 $len "${opts[@]}" 3>&1 1>&2 2>&3
+   whiptail --backtitle "$(backtitle_text)" --fb --title "${WHIP_TITLE}" --menu --cancel-button "$cancel_text" --ok-button Select "$1" 20 80 $len "${opts[@]}" 3>&1 1>&2 2>&3
    ret=$?
    return $ret
 }

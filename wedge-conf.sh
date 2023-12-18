@@ -1,5 +1,5 @@
 #!/bin/bash
-# generated Thu 14 Dec 08:38:03 GMT 2023
+# generated Mon 18 Dec 01:06:47 GMT 2023
 
 # MIT License
 # 
@@ -23,12 +23,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-DEBUG_LOG="./wedge-debug.log"
 
 # configuration options. When run as sudo this will be in root's home directory
 CONF_FILE="${HOME}/.config/wedge.conf"
 
+DEBUG_LOG="./wedge-debug.log"
 # -d switch to write to debug log
+
 if [[ $1 = "-d" ]]; then
    exec 5> $DEBUG_LOG 
    BASH_XTRACEFD="5"
@@ -42,50 +43,15 @@ function reload_conf() {
    . $CONF_FILE
 }
 
-# config file already written before
+# config file exists, reload 
 if [ -e $CONF_FILE ]; then
    reload_conf
 fi
 
-################################################################################
-# main_menu
-################################################################################
-function main_menu {
-   while true; do
-      reload_conf
-      options=(
-         "1 Setup" "Initial setup and configuration options"
-         "2 Clients" "Display connected client information"
-         "3 Connectivity" "Setup optional VPN, proxy or Tor network"
-         "4 Tools" "Configure or run inspection tools"
-         "5 Health check" "Check status of system components"
-         "6 Update" "Update this tool to the latest version"
-         "7 Uninstall" "Remove all configurations and software"
-      )
 
-      status=$(get_status_text)
-      choice=$(menu "${status}" options "Finish")
-
-      if [ $? -ne 0 ]; then
-         exit
-      fi
-
-      case $choice in
-         1\ *) ap_setup_menu;;
-         2\ *) display_clients;;
-         3\ *) tunnel_config_menu ;;
-         4\ *) tools_menu;;
-         5\ *) healthcheck ;;
-         6\ *) check_updates ;;
-         7\ *) uninstall ;;
-      esac
-   done
-}
 
 function is_not_setup() {
-   # TODO
-   return 0
-   if [ $STATUS_STATE -ne 1 ]; then
+   if [ "$STATUS_STATE" -ne 1 ]; then
       if yesno_box 8 "Initial setup has not been run. Would you like to run it now?"; then
          ap_setup_menu
          return 1
@@ -93,66 +59,7 @@ function is_not_setup() {
       msg_box 8 "Initial setup must be run before continuing"
       return 0
    fi
-   msg_box 8 "returning 1"
    return 1
-}
-
-function tunnel_config_menu() {
-
-   options=(
-      "1 Direct" "Direct via network interface"
-      "2 Wireguard" "Route all traffic via Wireguard VPN"
-      "3 TOR" "Route all traffic via the TOR network"
-      "4 BurpSuite / external proxy" "Forward specific ports to proxy"
-      "5 MITMProxy" "Forward specific ports MITMproxy on Pi"
-      "6 Back" "Return to previous menu"
-   )
-
-   choice=$(menu "Select tunnel configuration" options)
-   if [ $? -ne 0 ]; then
-      return
-   fi
-
-   case $choice in
-      1\ *) direct_no_tunnel;;
-      2\ *) conf_wireguard;;
-      3\ *) conf_tor;;
-      4\ *) conf_port_fwd;;
-      5\ *) set_mitmproxy_iptables;;
-      6\ *) return;;
-   esac
-}
-
-function ap_setup_menu() {
-   options=(
-      "1 Automatic" "Use predefined defaults"
-      "2 Custom" "Specify custom parameters"
-   )
-   choice=$(menu "Select setup type" options)
-   if [ $? -ne 0 ]; then
-      return
-   fi
-   case $choice in
-      1\ *) USE_DEFAULTS=1; run_setup ;;
-      2\ *) unset USE_DEFAULTS; run_setup;;
-   esac
-}
-
-function tools_menu() {
-   options=(
-     "1 MITMProxy" ""
-     "2 Termshark" "(wireshark-like)"
-     "3 Back" "Return to previous menu"
-   )
-   choice=$(menu "Select software to install/configure" options)
-   if [ $? -ne 0 ]; then
-      return
-   fi
-   case $choice in
-      1\ *) mitmproxy_setup;;
-      2\ *) termshark_run;;
-      3\ *) return;;
-   esac
 }
 
 
@@ -181,60 +88,6 @@ function set_conf_param() {
    declare "${param}"="${value}"
    sed -i "/${param}=/d" $CONF_FILE
    echo "${param}=${value}" >> $CONF_FILE
-}
-
-################################################################################
-# Status text shown at top of main menu
-# Shows wifi clients connected and traffic forward/routes/tunnels
-################################################################################
-function get_status_text() {
-   local text=""
-   if [ $STATUS_STATE -eq 0 ]; then
-      text="\nStatus: Initial setup"
-      if wireguard_is_iface_setup; then
-         text+=" (Note: wireguard tunnel up)"
-      fi
-      echo "$text"
-      return
-   fi
-
-   if [ $STATUS_STATE -eq 2 ]; then
-      text="Status: Initial setup failed. Resolve issues and re-run setup"
-      echo "$text"
-      return
-   fi
-
-   if [ $MITMPROXY_ENABLED -ne 0 ]; then
-      mitmproxy_text=" MITMProxy"
-   fi
-
-   text="\n       "
-
-   station_count=$(connected_stations)
-   if [ $station_count -gt 1 ]; then
-      station_text="${station_count} connected clients"
-   fi
-   if  [ $station_count -eq 0 ]; then
-      station_text="no connected clients"
-   fi
-   if [ $station_count -eq 1 ]; then
-      station_text="1 connected client"
-   fi
-
-   text+="SSID: ${AP_SSID}, ${station_text}\n"
-   text+="       "
-   text+="${WLAN_IFACE} -> [pi${mitmproxy_text}] -> ${EXT_IFACE} -> "
-   case $TUNNEL_TYPE in
-      DIRECT) text+="Internet";;
-      WIREGUARD) text+="Wireguard VPN"
-      if ! wireguard_is_iface_setup; then
-         text+="(DOWN)"
-      fi
-      ;;
-      TOR) text+="TOR";;
-      INLINE_PROXY) text+="$UPSTREAM_PROXY_HOST";;
-   esac
-   echo "$text"
 }
 
 function main() {
@@ -487,6 +340,279 @@ function cleanup_iptables {
    rm -f $IPTABLES_SAVE_FILE
 }
 
+################################################################################
+# root level main menu 
+################################################################################
+function main_menu {
+   local options
+   local choice
+   local status
+
+   while true; do
+      reload_conf
+      options=(
+         "1 Wireless LAN" "Initial setup and configuration options"
+         "2 Connectivity" "Setup optional VPN, proxy or Tor network"
+         "3 Mitmproxy" "Configure mitmproxy"
+         "4 Health check" "Check status of system components"
+         "5 Update" "Update this tool to the latest version"
+         "6 Uninstall" "Remove all configurations and software"
+      )
+
+      status=$(get_status_text)
+      if ! choice=$(menu "${status}" options "Finish"); then
+         exit
+      fi
+
+      case $choice in
+         1\ *) wlan_menu;;
+         2\ *) tunnel_config_menu ;;
+         3\ *) mitmproxy_main_menu;;
+         4\ *) healthcheck ;;
+         5\ *) check_updates ;;
+         6\ *) uninstall ;;
+      esac
+   done
+}
+
+function tunnel_config_menu() {
+   local options
+   local choice
+
+   options=(
+      "1 Direct" "Direct via network interface"
+      "2 Wireguard" "Route all traffic via Wireguard VPN"
+      "3 TOR" "Route all traffic via the TOR network"
+      "4 BurpSuite / proxy" "Forward specific ports to proxy"
+      "5 Back" "Return to previous menu"
+   )
+
+   if ! choice=$(menu "Select outbound traffic configuration" options); then 
+      return
+   fi
+
+   case $choice in
+      1\ *) direct_no_tunnel;;
+      2\ *) conf_wireguard;;
+      3\ *) conf_tor;;
+      4\ *) conf_port_fwd;;
+      5\ *) return;;
+   esac
+}
+
+function ap_setup_menu() {
+   local options
+   local choice
+
+   options=(
+      "1 Automatic" "Use predefined defaults"
+      "2 Custom" "Specify custom parameters"
+   )
+   if ! choice=$(menu "Select setup type" options); then
+      return
+   fi
+   case $choice in
+      1\ *) USE_DEFAULTS=1; run_setup ;;
+      2\ *) unset USE_DEFAULTS; run_setup;;
+   esac
+}
+
+function tools_menu() {
+   local options
+   local choice
+
+   options=(
+     "1 MITMProxy" "Transparent proxy traffic inspection"
+     "2 Termshark" "(wireshark-like)"
+     "3 Back" "Return to previous menu"
+   )
+   if ! choice=$(menu "Select software to install/configure" options); then
+      return
+   fi
+   case $choice in
+      1\ *) mitmproxy_main_menu;;
+      2\ *) termshark_run;;
+      3\ *) return;;
+   esac
+   tools_menu
+}
+
+function wlan_menu() {
+   local ap_text
+   local ap_text_2
+   local choice
+
+   if [ "$STATUS_STATE" -eq 0 ]; then
+      ap_setup_menu
+   fi
+   if systemctl status hostapd > /dev/null; then
+      ap_text="Stop"
+      ap_text_2="Stop Wifi AP"
+   else
+      ap_text="Start"
+      ap_text_2="Start Wifi AP"
+   fi
+
+   options=(
+      "1 ${ap_text} " "${ap_text_2} wifi access point"
+      "2 Connected clients" "List connected wifi clients with DHCP lease"
+      "3 Set SSID" "Set Wifi network name"
+      "4 Configure" "Re-run full configuration options"
+      "4 Back" "Return to previous menu"
+   )
+   if ! choice=$(menu "Select option" options); then
+      return
+   fi
+   case $choice in
+      1\ *) toggle_hostapd;;
+      2\ *) display_clients;;
+      3\ *) set_ssid_menu;;
+      4\ *) ap_setup_menu;; 
+      5\ *) return;; 
+   esac
+   wlan_menu
+}
+
+function backtitle_text() {
+   local ssid
+   local hostapd_status
+   local station_count
+   local mitmweb_url
+   local mitmweb_svc
+
+   station_count=$(connected_stations)
+   if [ "$station_count" -gt 1 ]; then
+      station_text="${station_count} clients"
+   fi
+   if  [ "$station_count" -eq 0 ]; then
+      station_text="0 clients"
+   fi
+   if [ "$station_count" -eq 1 ]; then
+      station_text="1 client"
+   fi
+   ssid=$(ssid_from_config)
+
+   if pgrep hostapd > /dev/null 2>&1; then
+      hostapd_status="UP"
+   else 
+      hostapd_status="DOWN"
+   fi 
+
+   mitmweb_url="mitmweb: " 
+   mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep -v 8080 | awk '{print $4}')"
+   if [[ $mitmweb_svc != "" ]]; then
+      mitmweb_url="http://${mitmweb_svc}"
+   else
+      mitmweb_url="not running"
+   fi
+
+   echo -e "| WLAN AP: $hostapd_status ¦ ssid: '${ssid}' → ${station_text} | ${mitmweb_url} |"
+}
+
+################################################################################
+# Status text shown at top of main menu
+# Shows wifi clients connected and traffic forward/routes/tunnels
+################################################################################
+function get_status_text() {
+   local text=""
+   if [ $STATUS_STATE -eq 0 ]; then
+      text="\nStatus: Initial setup"
+      if wireguard_is_iface_setup; then
+         text+=" (Note: wireguard tunnel up)"
+      fi
+      echo "$text"
+      return
+   fi
+
+   if [ $STATUS_STATE -eq 2 ]; then
+      text="Status: Initial setup failed. Resolve issues and re-run setup"
+      echo "$text"
+      return
+   fi
+
+   if redir=$(mitmproxy_is_redirected); then
+      mitmproxy_text="[${redir}]¬ mitmproxy -»"
+   fi
+
+   #text="\n       "
+   text="\n"
+
+   
+   if ! ifconfig "$WLAN_IFACE" > /dev/null 2>&1; then
+      BACKTITLE+="[DOWN]"
+   fi
+
+   text+="${WLAN_IFACE} -» ${mitmproxy_text}${EXT_IFACE} -» "
+   case $TUNNEL_TYPE in
+      DIRECT) text+="Internet";;
+      WIREGUARD) text+="Wireguard"
+      if ! wireguard_is_iface_setup; then
+         text+="(DOWN)"
+      fi
+      ;;
+      TOR) text+="TOR";;
+      INLINE_PROXY) text+="$UPSTREAM_PROXY_HOST";;
+   esac
+   echo "$text"
+}
+
+function is_not_setup() {
+   if [ "$STATUS_STATE" -ne 1 ]; then
+      if yesno_box 8 "Initial setup has not been run. Would you like to run it now?"; then
+         ap_setup_menu
+         return 1
+      fi
+      msg_box 8 "Initial setup must be run before continuing"
+      return 0
+   fi
+   return 1
+}
+
+function set_ssid_menu() {
+    options=(
+      "1 Manual" "Enter SSID Wifi network name" 
+      "2 Random" "Generate and set random Wifi network name" 
+      "3 Back" "Return to previous menu"
+   )
+   if ! choice=$(menu "Select option" options); then
+      return
+   fi
+   case $choice in
+      1\ *) set_ssid_text;;
+      2\ *) set_random_ssid;;
+      3\ *) return;; 
+   esac
+}
+
+function mitmproxy_main_menu() {
+   local options
+   local choice 
+
+   if [ ! -e "/opt/mitmproxy/venvs/mitmproxy/bin/mitmproxy" ]; then
+      if yesno_box 8 "Mitmproxy is not installed and configured. Install?"; then
+         mitmweb_install_service
+      fi
+   fi
+
+   options=(
+      "1 Port forwarding" "Specify ports to forward to mitmproxy" 
+      "2 Disable forwarding" "Remove port forwarding to mitmproxy" 
+      "3 Uninstall" "Uninstall mitmproxy"
+      "4 Back" "Return to previous menu"
+   )
+   if ! choice=$(menu "Select option" options); then
+      return
+   fi
+
+   case $choice in
+      1\ *) set_mitmproxy_iptables;;
+      2\ *) unset_mitmproxy_iptables;;
+      3\ *) mitmweb_uninstall;; 
+      4\ *) return;; 
+   esac
+}
+
+
 WHIP_TITLE="Wedgeberry Pi Configuration Tool (wedge-config)"
 
 ################################################################################
@@ -529,10 +655,11 @@ function menu() {
    local l="${#opts[@]}"
    local len=$(($l / 2))
    local cancel_text="$3"
+   
    if [ -z "$cancel_text" ]; then
       cancel_text="Back"
    fi
-   whiptail --title "${WHIP_TITLE}" --menu --cancel-button "$cancel_text" --ok-button Select "$1" 20 80 $len "${opts[@]}" 3>&1 1>&2 2>&3
+   whiptail --backtitle "$(backtitle_text)" --fb --title "${WHIP_TITLE}" --menu --cancel-button "$cancel_text" --ok-button Select "$1" 20 80 $len "${opts[@]}" 3>&1 1>&2 2>&3
    ret=$?
    return $ret
 }
@@ -564,6 +691,9 @@ function get_arch() {
    echo "$arch"
 }
 
+function whoami() {
+   who am i | awk '{print $1}'
+}
 
 
 REQUIRED_PACKAGES=(iptables ipcalc dnsmasq hostapd dhcpcd resolvconf)
@@ -651,7 +781,8 @@ function disable_egress_services() {
 
    # a hammer
    iptables -F
-   iptables -F -t nat
+
+   iptables-save | grep -v WEDGE_TUNNEL | iptables-restore
 
    # tor
    if [[ $(systemctl is-active tor) = "active" ]]; then
@@ -675,11 +806,14 @@ function disable_egress_services() {
 function start_services {
 
    # hostapd
-   if [[ $(systemctl is-enabled hostapd.service) != "enabled" ]]; then
-      systemctl unmask hostapd.service
-      systemctl enable --now hostapd.service
+   if pgrep hostapd > /dev/null; then
+      systemctl restart hostapd
+   else
+      if [[ $(systemctl is-enabled hostapd.service) != "enabled" ]]; then
+         systemctl unmask hostapd.service
+         systemctl enable --now hostapd.service
+      fi
    fi
-
    # resolved TODO: (is this only required for wireguard)
    if [[ $(systemctl is-active systemd-resolved) = "active" ]]; then
       echo "stopping systemd-resolved"
@@ -688,10 +822,12 @@ function start_services {
    fi 
 
    # dnsmasq
-   systemctl restart dnsmasq
+   systemctl enable --now dnsmasq
+   #systemctl restart dnsmasq
 
    # dhcpcd
-   systemctl restart dhcpcd
+   systemctl enable --now dhcpcd
+   #systemctl restart dhcpcd
 }
 
 ################################################################################
@@ -808,9 +944,7 @@ function uninstall() {
 
    stop_services
 
-   if [ -z "$MITM_SERVICE" ] && [ "$MITMWEB_SERVICE" -eq 1 ]; then
-      remove_mitmweb_service
-   fi
+   remove_mitmweb_service
 
    set_conf_param STATUS_STATE 0
    if ! yesno_box 8 "Remove all installed software packages?"; then
@@ -830,12 +964,28 @@ function uninstall() {
    fi
 
 }
+SCRIPT_GITHUB_URL="https://raw.githubusercontent.com/haxrob/wedgeberry/main/wedge-conf.sh"
+function check_updates() {
+    current_script="${BASH_SOURCE[0]}"
+    contents=$(curl --silent $SCRIPT_GITHUB_URL) 
+    remote_hash=$(echo -n $contents | md5sum | cut -d' ' -f1)
+    my_hash=$(cat $current_script | md5sum | cut -d' ' -f1)
+    if [[ $remote_hash != $my_hash ]]; then
+        if yesno_box 8 "A newer version was found. ?"; then
+            echo "$contents" > $current_script
+            exec $current_script 
+        fi
+    else
+       msg_box 8 "No new updates found"
+    fi
+}
 
 # wifi defaults
 DEFAULT_WIFI_CHANNEL=11
 DEFAULT_SSID=wedge-ap
 DEFAULT_WIFI_PASSWORD="012345678"
 
+hostap_conf="/etc/hostapd/hostapd.conf"
 ################################################################################
 # present a list of country codes in a menu
 # returns: 0 OK
@@ -873,7 +1023,6 @@ function setup_hostap() {
       fi
       raspi-config nonint do_wifi_country "$regdomain"
    fi
-   hostap_conf="/etc/hostapd/hostapd.conf"
 
    if [[ ! $USE_DEFAULTS ]]; then
 
@@ -909,7 +1058,7 @@ function setup_hostap() {
       len=${#AP_PASSWORD}
       while [[ $len -ne 0 ]] && [[ $len -le 7 ]]; do
          msg_box "Password must be longer or equal to 8 characters"
-         AP_PASSWORD=$(input_box "Wifi password. Empty if none")
+         AP_PASSWORD=$(input_box "Wifi password. Empty i.*f none")
          if [ $? -ne 0 ]; then
             return 1
          fi
@@ -1074,6 +1223,43 @@ function cleanup_hostapd() {
    rm -f /etc/default/hostapd
    rm -f /etc/hostapd/hostapd.conf
 }
+
+function toggle_hostapd() {
+   if systemctl status hostapd > /dev/null; then
+      systemctl stop hostapd
+   else
+      if systemctl start hostapd; then 
+         msg_box 8 "wlan access point started"
+      else
+         msg_box 8 "wlan access point stopped"
+      fi 
+   fi
+}
+
+function set_ssid() {
+   ssid="$1"
+   sed -i "s/ssid=.*/ssid=${ssid}/" $hostap_conf
+   if ! systemctl restart hostapd; then
+      msg_box 8 "Error (re)starting hostapd service!"
+   fi
+}
+function set_random_ssid() {
+   local ssid=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-10} | head -n 1)
+   if yesno_box 8 "SSID will be changed to: ${ssid}. Continue?"; then
+      set_ssid $ssid
+   fi
+}
+
+function set_ssid_text() {
+   ssid=$(input_box "Enter Wifi SSID" "$(ssid_from_config)")
+   set_ssid $ssid 
+}
+
+function ssid_from_config() {
+   grep -oP 'ssid=\K.+' /etc/hostapd/hostapd.conf
+}
+
+
 ################################################################################
 # writes dhcpcd configuration
 # returns: 0
@@ -1142,35 +1328,6 @@ function conf_dnsmasq() {
 function cleanup_dnsmasq() {
    rm -f /etc/dnsmasq.conf
 }
-function mitmproxy_setup() {
-
-   options=()
-   
-   user=$(who am i | awk '{print $1}')
-   sudo -u $user pipx list 2>/dev/null | grep -q mitmproxy
-   if [ $? -eq 0 ] || [ $MITMWEB_SERVICE -eq 1 ] ; then 
-      if [ $(iptables -L -t nat | grep -q MITMPROXY)$? -ne 0 ]; then
-         options+=( "1 Enable" "Enable port forwarding to MITMproxy" )
-      else
-         options+=( "1 Disable" "Disable forwarding to MITMProxy" )
-      fi
-      options+=( "2 Uninstall" "Remove MITMProxy packages" )
-   else
-      options+=( "1 Install" "Install MITMProxy" )
-   fi
-
-   choice=$(menu "Select options configure" options)
-   if [ $? -ne 0 ]; then
-      return
-   fi
-   case $choice in
-      1\ Enable) set_mitmproxy_iptables;;
-      1\ Disable) unset_mitmproxy_iptables;;
-      1\ Install) mitmproxy_install;;
-      2\ Uninstall) mitmproxy_uninstall;;
-   esac
-
-}
 
 ################################################################################
 # set ports to redirect to mitmproxy service
@@ -1197,6 +1354,10 @@ function set_mitmproxy_iptables() {
       done
    done
    set_conf_param MITMPROXY_ENABLED 1
+   
+   # remove any prior rules
+   iptables-save | grep -v WEDGE_MITMPROXY | iptables-restore
+
    for port in ${ports//,/ }; do
       iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --dport $port -j  REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
       iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --dport $port -j REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
@@ -1219,37 +1380,24 @@ function unset_mitmproxy_iptables() {
    return
 }
 
-function mitmproxy_install() {
-   if ! is_installed pipx; then
-      msg_box 8 "pipx is required to install mitmproxy - will install"
-      sudo apt update
-      apt-get -y install pipx
-   fi
-
-   if yesno_box 8 "Would you like to install mitmweb as a system service? Selecting yes will install mitmproxy into /opt/mitmproxy"; then
-      mitmweb_install_service
-      return
-   fi
-   # as script is being run as sudo, get the user that invoked sudo, otherwise everything
-   # will be installed under /root
-   user=$(who am i | awk '{print $1}')
-
-   sudo -u $user pipx list | grep -q mitmproxy
-   if [ $? -ne 0 ]; then
-      msg_box 8 "mitmproxy will be installed user '${user}'"
-      sudo -u $user pipx install mitmproxy
-      sudo -u $user pipx ensurepath
-   fi
-}
-
 function mitmproxy_uninstall() {
-   user=$(who am i | awk '{print $1}')
-   sudo -u $user pipx uninstall mitmproxy
+   sudo -u mitmproxy pipx uninstall mitmproxy
    set_conf_param MITMPROXY_ENABLED 0 
    unset_mitmproxy_iptables
 }
 
 function mitmweb_install_service() {
+   if ! is_installed pipx; then
+      msg_box 8 "pipx is required to install mitmproxy. Continue?"
+      sudo apt update
+      apt-get -y install pipx
+   else
+      return
+   fi
+
+   if ! msg_box 8 "mitmproxy will be installed under /opt/mitmproxy. mitmweb will be run as a systemd service 'mitmweb.service'. Continue?"; then
+      return
+   fi
    mkdir /opt/mitmproxy
    addgroup --system mitmproxy
    adduser --system --home /opt/mitmproxy --shell /usr/sbin/nologin --no-create-home --gecos 'mitmproxy' --ingroup mitmproxy --disabled-login --disabled-password mitmproxy
@@ -1307,12 +1455,28 @@ function mitmweb_install_service() {
    msg_box 8 "mitmweb can be accessed on http://${mitmweb_listen_addr}:8081"
 }
 
+function mitmproxy_is_redirected() {
+
+   # mitmweb is runnning and redirection rules in nat table configured
+   if pgrep mitmweb > /dev/null; then 
+      if iptables -L -t nat | grep WEDGE_MITMPROXY > /dev/null 2>&1; then
+         i=$(iptables -n -L -t nat | grep WEDGE_MITMPROXY | grep dpt | awk '{ print $7 }' | cut -d':' -f2 | sort -u | tr '\n' ',')
+         # remove trailing , character
+         echo "${i::-1}"
+         return 0
+      fi
+   fi
+   return 1
+}
 function remove_mitmweb_service() {
    systemctl stop mitmweb.service
    rm /etc/systemd/system/mitmproxy.service
    systemctl daemon-reload
+   unset_mitmproxy_iptables
    set_conf_param MITMWEB_SERVICE 0
 }
+
+
 function conf_port_fwd() {
    valid_input=1
    desthost=$(input_box "Enter proxy host and port (e.g. 1.2.3.4:8080)" "127.0.0.1:8080" $UPSTREAM_PROXY_HOST)
@@ -1364,9 +1528,17 @@ function termshark_check_install() {
 # returns 0
 ################################################################################
 function set_tor_iptables() {
+
+   # TODO: why flush?
    iptables -F
-   iptables -t nat -F
+
+   # remove prior tunnel related iptables rules
+   iptables-save | grep -v WEDGE_TUNNEL | iptables-restore
+
+   # redirect DNS
    iptables -t nat -A PREROUTING -i $WLAN_IFACE -p udp --dport 53 -j REDIRECT --to-ports 53 -m comment --comment WEDGE_TUNNEL_TOR
+
+   # redirect all TCP
    iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --syn -j REDIRECT --to-ports 9040 -m comment --comment WEDGE_TUNNEL_TOR
 }
 

@@ -27,4 +27,7 @@ function get_arch() {
    echo "$arch"
 }
 
+function whoami() {
+   who am i | awk '{print $1}'
+}
 
