@@ -1,5 +1,5 @@
 # wedgeberry
-Wedgeberry is a single script that provides an interactive menu to configure a Raspberry Pi into a IoT / mobile device network monitoring tool for use with [mitmproxy](https://mitmproxy.org/). With Wedgeberry, you can convert a Pi into a Wifi access point running mitmproxy and have egress traffic routed over a variety of options such as Wireguard VPN, Tor network or an upstream BurpSuite proxy instance. 
+Wedgeberry is an interactive script that assists in repurposing a Raspberry Pi into a customizable Wifi access point with transparent proxying for TLS and other traffic inspection via [mitmproxy](https://mitmproxy.org/). Wedgeberry's primary goal is to streamline related installation and configuration while offering functionality that supports the privacy of the security tester (without having to host a segmented lab/network).  VPN/tunneling, firewalling and Wifi parameter randomization (BSSID, SSID) are optional features to support this goal. Additionally an upsteam  
 
 ![wedge-diagram](/images/connectivity.png)
 
@@ -55,18 +55,32 @@ Run with `-d` flag to write bash verbose output to logfile `wedge-debug.log` wit
 - **BurpSuite / External proxy** - Forward specific TCP ports to BurpSuite proxy running on external host
 - **MITMProxy** - Forward specific portst o MITMProxy transparent proxy running on Pi
 
-**Tools** - Install, configure or run useful toolls
-- **MITMProxy** - Installs MITM proxy as a systemd service
-- **Termshark** - Install or run termshark.io (cli based wireshark clone)
+**Mitmproxy** - Manage mitmproxy 
+- **Port forwarding** - Specify TCP ports to forward to mitmproxy
+- **Disable forwarding** - Removes related iptables rules
+- **Install** - Installs mitmproxy (via pipx) and adds a systemd service to start mitmweb
+- **Uninstall** - Removes mitmproxy and service file
 
 **Healthcheck** - Checks status of configuration and software services 
 
 **Update** - Check and update script to latest version
 
-**Uninstall** - Reverts configurations applied and optionally uninstalls packages
+**Uninstall** - Removes all iptables rules, routes, configurations and optionally uninstalls packages
 
 # Compatibility
 
 Two interfaces are required - All Pi models that support Wifi should work out of the box except the Pi W. Here an additional interface card is required to be connected.
 
 It is recommended to use [latest Raspberry Pi images](https://www.raspberrypi.com/software/operating-systems/). This software has only been tested on the Rasperry Pi image `Debian GNU/Linux 12 (bookworm)`.
+
+# Packages
+
+The following packages are installed and/or managed:
+- dnsmasq 
+- hostapd
+- dhcpcd
+- tor
+- wireguard / wireguard-tools
+- resolvconf 
+- iptables
+- pipx
