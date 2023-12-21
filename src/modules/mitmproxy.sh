@@ -1,4 +1,6 @@
-
+###############################################################################
+# -- begin modules/mitmproxy.sh
+###############################################################################
 
 ################################################################################
 # set ports to redirect to mitmproxy service
@@ -146,4 +148,3 @@ function remove_mitmweb_service() {
    unset_mitmproxy_iptables
    set_conf_param MITMWEB_SERVICE 0
 }
-

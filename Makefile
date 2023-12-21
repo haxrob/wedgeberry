@@ -2,14 +2,15 @@
 
 all: wedge-conf.sh 
 
-wedge-conf.sh: system/* modules/* 
+wedge-conf.sh: ./src/system/* ./src/modules/* 
 	echo '#!/bin/bash' > "$@"
-	echo "# generated $(shell date)\n" >> "$@"
+	echo "# Generated $(shell date)\n" >> "$@"
 	cat LICENSE | sed 's/^/# /' >> "$@"
-	cat header.sh >> "$@"
+	cat ./src/header.sh >> "$@"
 	cat $^ >> "$@" || (rm -f "$@"; exit 1)
-	cat footer.sh >> "$@"
+	cat ./src/footer.sh >> "$@"
 	chmod u+x "$@"
+	mv "$@" ./build
 
 clean: 
-	rm wedge-conf.sh
+	rm ./build/wedge-conf.sh

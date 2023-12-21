@@ -1,4 +1,6 @@
-
+###############################################################################
+# -- begin system/wlan.sh
+###############################################################################
 
 # wifi defaults
 DEFAULT_WIFI_CHANNEL=11
@@ -73,7 +75,7 @@ function setup_hostap() {
       if [ $? -ne -0 ]; then
          return 1
       fi
-      
+ 
       # allow 0 or 8 or more characters. 0 means public wifi
       len=${#AP_PASSWORD}
       while [[ $len -ne 0 ]] && [[ $len -le 7 ]]; do
@@ -91,6 +93,7 @@ function setup_hostap() {
       AP_PASSWORD=$DEFAULT_WIFI_PASSWORD
    fi
 
+   bssid=$(random_mac)
    hostap_contents=(
       "interface=${WLAN_IFACE}"
       "driver=nl80211"
@@ -101,6 +104,7 @@ function setup_hostap() {
       "macaddr_acl=0"
       "auth_algs=1"
       "wmm_enabled=0"
+      "bssid=${bssid}"
    )
 
    # TODO: fix public wifi
@@ -264,10 +268,15 @@ function set_ssid() {
    fi
 }
 function set_random_ssid() {
-   local ssid=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-10} | head -n 1)
-   if yesno_box 8 "SSID will be changed to: ${ssid}. Continue?"; then
+   
+   # ssid 5 characters (make it easy to type on a phone etc)
+   local ssid=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-5} | head -n 1)
+   local bssid=$(random_mac)
+   if yesno_box 12 "SSID will be changed to: '${ssid}'.\nBSSID will be set to: '${bssid}'\nContinue?"; then
       set_ssid $ssid
+      set_bssid $bssid
    fi
+
 }
 
 function set_ssid_text() {
@@ -276,6 +285,16 @@ function set_ssid_text() {
 }
 
 function ssid_from_config() {
-   grep -oP 'ssid=\K.+' /etc/hostapd/hostapd.conf
+   grep -oP '^ssid=\K.+' /etc/hostapd/hostapd.conf
 }
 
+function random_mac() {
+   local mac
+   mac=$(od -An -N6 -t xC /dev/urandom | sed -e 's/ /:/g')
+   echo "${mac:1}"
+}
+function set_bssid() {
+   local bssid=$1
+   sed -i '/bssid=/d' $hostap_conf
+   echo "bssid=${bssid}" >> $hostap_conf 
+}

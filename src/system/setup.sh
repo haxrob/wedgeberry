@@ -1,7 +1,6 @@
-
-################################################################################
-# Initial setup procedure
-################################################################################
+###############################################################################
+# -- begin system/setup.sh
+###############################################################################
 function run_setup() {
    if [ $STATUS_STATE -eq 1 ]; then
       yesno_box 8 "AP mode is already setup. Continuing will override existing configuration. Continue?"
@@ -17,28 +16,23 @@ function run_setup() {
 }
 
 function setup_items() {
-   check_interface_count
-   if [ $? -ne 0 ]; then
+   if ! check_interface_count; then
       return 2
    fi
    set_conf_param STATUS_STATE 0
    set_conf_param MITMPROXY_ENABLED 0
    set_conf_param TUNNEL_TYPE DIRECT
    disable_egress_services
-   set_wifi_network
-   if [ $? -eq 1 ]; then
+   if ! set_wifi_network; then
       return 1
    fi
-   set_outbound_interface
-   if [ $? -ne 0 ]; then
+   if ! set_outbound_interface; then
       return 1
    fi
-   setup_hostap
-   if [ $? -ne 0 ]; then
+   if ! setup_hostap; then
       return 1
    fi
-   confirm_settings
-   if [ $? -ne 0 ]; then
+   if ! confirm_settings; then
       return
    fi
    deps_install

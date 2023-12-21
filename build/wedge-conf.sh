@@ -1,5 +1,5 @@
 #!/bin/bash
-# generated Mon 18 Dec 01:06:47 GMT 2023
+# Generated Thu 21 Dec 02:55:59 GMT 2023
 
 # MIT License
 # 
@@ -50,18 +50,6 @@ fi
 
 
 
-function is_not_setup() {
-   if [ "$STATUS_STATE" -ne 1 ]; then
-      if yesno_box 8 "Initial setup has not been run. Would you like to run it now?"; then
-         ap_setup_menu
-         return 1
-      fi
-      msg_box 8 "Initial setup must be run before continuing"
-      return 0
-   fi
-   return 1
-}
-
 
 
 ################################################################################
@@ -96,7 +84,85 @@ function main() {
    main_menu
 }
 
+###############################################################################
+# -- begin modules/dhcpcd.sh
+###############################################################################
 
+################################################################################
+# writes dhcpcd configuration
+# returns: 0
+################################################################################
+function set_dhcpcd() {
+
+   wlan_contents=(
+      "interface ${WLAN_IFACE}"
+      "static ip_address=${WLAN_STATIC_ADDR}"
+      "nohook wpa_supplicant"
+   )
+   lines=$(printf '%s\n' "${wlan_contents[@]}" | sed '/^$/d')
+
+   # replace everything under "interface <wlan interface>" until blank line
+   # TODO: I don't think this is the best approach, but we don't want to 
+   # blast away any existing config. need to evaluate this furter.
+   
+   sed -i "/interface ${WLAN_IFACE}/,/^$/d" /etc/dhcpcd.conf
+   echo "$lines" >> /etc/dhcpcd.conf
+
+   # different approach (not used), find line number if existing config and then delete
+   # from there
+
+   #lineno=$(grep -n "interface wlan0" /etc/dhcpcd.conf | cut -d: -f1)
+   #if [ $? -ne 0 ]; then
+   #   echo "$lines" >> /etc/dhcpcd.conf
+   #   return
+   #fi
+
+   #edit from line number
+   #sed "$lineno,$((lineno+2))s/static ip_address=.*/static ip_address=$host_min/g" /etc/dhcpcd.conf
+}
+
+function cleanup_dhcpcd() {
+   rm -f /etc/dhcpcd.conf
+   
+   # note service will be stopped from stop_services later
+}
+###############################################################################
+# -- begin modules/dnsmasq.sh
+###############################################################################
+
+DNS_LOG_FILE="${HOME}/wedge-dns.log"
+
+################################################################################
+# configure dnsmasq needed to issue IP addresses to wlan clients
+# returns: 0
+################################################################################
+function conf_dnsmasq() {
+   dnsmasq_conf="/etc/dnsmasq.conf"
+
+   last_octet=$(echo $AP_ADDR | cut -d'.' -f 4)
+   dhcp_start_addr="$(echo $AP_ADDR | cut -d. -f1,2,3).$((last_octet+1))"
+
+   dnsmasq_contents=(
+      "interface=${WLAN_IFACE}"
+      "listen-address=${AP_ADDR}"
+      "dhcp-range=${dhcp_start_addr},${WIFI_NET_HOST_MAX},${WIFI_NET_MASK},24h"
+      "bind-dynamic"
+      "domain-needed"
+      "bogus-priv"
+      "log-queries"
+      "log-facility=${DNS_LOG_FILE}"
+   )
+
+   printf '%s\n' "${dnsmasq_contents[@]}" | sed '/^$/d' > $dnsmasq_conf
+
+}
+
+function cleanup_dnsmasq() {
+   rm -f /etc/dnsmasq.conf
+}
+###############################################################################
+# -- begin system/healthcheck.sh
+###############################################################################
 
 # TODO: Seperate functionality into each "module" file
 function healthcheck() {
@@ -192,6 +258,9 @@ function healthcheck() {
    set_conf_param STATUS_STATE 1
    return 0
 }
+###############################################################################
+# -- begin system/interfaces.sh
+###############################################################################
 
 ###############################################################################
 # checks that two network interfaces exist by enumerating /sys/class/net
@@ -304,6 +373,9 @@ function direct_no_tunnel() {
    set_direct_iptables
    msg_box 8 "Direct connection (no tunnel) configured."
 }
+###############################################################################
+# -- begin system/iptables.sh
+###############################################################################
 
 # iptables defaults
 IPTABLES_PERSIST_FILE="/etc/network/if-pre-up.d/iptables"
@@ -339,10 +411,9 @@ function cleanup_iptables {
    rm -f $IPTABLES_PERSIST_FILE
    rm -f $IPTABLES_SAVE_FILE
 }
-
-################################################################################
-# root level main menu 
-################################################################################
+###############################################################################
+# -- begin system/menus.sh
+###############################################################################
 function main_menu {
    local options
    local choice
@@ -353,10 +424,11 @@ function main_menu {
       options=(
          "1 Wireless LAN" "Initial setup and configuration options"
          "2 Connectivity" "Setup optional VPN, proxy or Tor network"
-         "3 Mitmproxy" "Configure mitmproxy"
-         "4 Health check" "Check status of system components"
-         "5 Update" "Update this tool to the latest version"
-         "6 Uninstall" "Remove all configurations and software"
+         "3 Mitmproxy" "Configure mitmproxy web service"
+         "4 Logging" "DNS logging, flow logging"
+         "5 Health check" "Check status of system components"
+         "6 Update" "Update this tool to the latest version"
+         "7 Uninstall" "Remove all configurations and software"
       )
 
       status=$(get_status_text)
@@ -368,9 +440,10 @@ function main_menu {
          1\ *) wlan_menu;;
          2\ *) tunnel_config_menu ;;
          3\ *) mitmproxy_main_menu;;
-         4\ *) healthcheck ;;
-         5\ *) check_updates ;;
-         6\ *) uninstall ;;
+         4\ *) logging_menu;;
+         5\ *) healthcheck ;;
+         6\ *) check_updates ;;
+         7\ *) uninstall ;;
       esac
    done
 }
@@ -492,10 +565,11 @@ function backtitle_text() {
    fi
    ssid=$(ssid_from_config)
 
+   hostapd_status="DOWN"
    if pgrep hostapd > /dev/null 2>&1; then
-      hostapd_status="UP"
-   else 
-      hostapd_status="DOWN"
+      if ifconfig $WLAN_IFACE | grep -q 'RUNNING'; then
+         hostapd_status="UP"
+      fi
    fi 
 
    mitmweb_url="mitmweb: " 
@@ -571,7 +645,7 @@ function is_not_setup() {
 function set_ssid_menu() {
     options=(
       "1 Manual" "Enter SSID Wifi network name" 
-      "2 Random" "Generate and set random Wifi network name" 
+      "2 Random" "Generate random SSID and BSSID (mac address)" 
       "3 Back" "Return to previous menu"
    )
    if ! choice=$(menu "Select option" options); then
@@ -612,6 +686,33 @@ function mitmproxy_main_menu() {
    esac
 }
 
+function logging_menu() {
+   local options
+   local choice
+   if pgrep tshark; then
+      start_stop="Stop"
+   else
+      start_stop="Start"
+   fi
+
+   options=(
+     "1 ${start_stop}" "${start_stop} packet capture"
+     "2 Show conversations" "Show converstations based on capture"
+     "3 Back" "Return to previous menu"
+   )
+   if ! choice=$(menu "Select an option"); then
+      return
+   fi
+   case $choice in
+      1\ *) packet_capture_toggle;;
+      2\ *) packet_capture_conversations;;
+      3\ *) return;;
+   esac
+   tools_menu
+}
+###############################################################################
+# -- begin system/menu_widgets.sh
+###############################################################################
 
 WHIP_TITLE="Wedgeberry Pi Configuration Tool (wedge-config)"
 
@@ -663,12 +764,9 @@ function menu() {
    ret=$?
    return $ret
 }
-################################################################################
-# validate subnet format
-# params:   ip range with subnet (eg: 192.168.0.0/22)
-# returns:  0 success
-#           1 invalid subnet format
-################################################################################
+###############################################################################
+# -- begin system/misc.sh
+###############################################################################
 function is_invalid_net() {
    if [[ -z $1 ]]; then
       return 0
@@ -695,6 +793,9 @@ function whoami() {
    who am i | awk '{print $1}'
 }
 
+###############################################################################
+# -- begin system/packages.sh
+###############################################################################
 
 REQUIRED_PACKAGES=(iptables ipcalc dnsmasq hostapd dhcpcd resolvconf)
 OPTIONAL_PACKAGES=(tor wireguard termshark)
@@ -765,6 +866,9 @@ function check_if_apt_update() {
    fi
 }
 
+###############################################################################
+# -- begin system/services.sh
+###############################################################################
 
 REQUIRED_SERVICES=(dnsmasq hostapd dhcpcd)
 # resolvconf required for wireguard
@@ -848,10 +952,9 @@ function stop_services() {
    done
 
 }
-
-################################################################################
-# Initial setup procedure
-################################################################################
+###############################################################################
+# -- begin system/setup.sh
+###############################################################################
 function run_setup() {
    if [ $STATUS_STATE -eq 1 ]; then
       yesno_box 8 "AP mode is already setup. Continuing will override existing configuration. Continue?"
@@ -867,28 +970,23 @@ function run_setup() {
 }
 
 function setup_items() {
-   check_interface_count
-   if [ $? -ne 0 ]; then
+   if ! check_interface_count; then
       return 2
    fi
    set_conf_param STATUS_STATE 0
    set_conf_param MITMPROXY_ENABLED 0
    set_conf_param TUNNEL_TYPE DIRECT
    disable_egress_services
-   set_wifi_network
-   if [ $? -eq 1 ]; then
+   if ! set_wifi_network; then
       return 1
    fi
-   set_outbound_interface
-   if [ $? -ne 0 ]; then
+   if ! set_outbound_interface; then
       return 1
    fi
-   setup_hostap
-   if [ $? -ne 0 ]; then
+   if ! setup_hostap; then
       return 1
    fi
-   confirm_settings
-   if [ $? -ne 0 ]; then
+   if ! confirm_settings; then
       return
    fi
    deps_install
@@ -910,11 +1008,9 @@ function setup_items() {
    fi
    set_conf_param STATUS_STATE 1
 }
-
-################################################################################
-# set_ipfw
-# returns: 0
-################################################################################
+###############################################################################
+# -- begin system/sysctl.sh
+###############################################################################
 function set_ipfwd() {
    echo "Setting ipv4.ip_forward"
    sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
@@ -926,6 +1022,26 @@ function cleanup_sysctl() {
    sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
    sysctl -p
 }
+###############################################################################
+# -- begin modules/termshark.sh
+###############################################################################
+
+function termshark_run() {
+    termshark_check_install
+    msg_box 8 "termshark will now listen on ${WLAN_IFACE}"
+    termshark -i $WLAN_IFACE
+}
+function termshark_check_install() {
+    if ! is_installed "termshark"; then
+        if yesno_box 8 "Termshark is not installed. Install now?"; then
+            check_if_apt_update
+            apt install -y termshark
+        fi
+    fi
+}
+###############################################################################
+# -- begin system/uninstall.sh
+###############################################################################
 function uninstall() {
    if ! yesno_box 8 "Remove all configuration files?"; then
       return
@@ -964,7 +1080,10 @@ function uninstall() {
    fi
 
 }
-SCRIPT_GITHUB_URL="https://raw.githubusercontent.com/haxrob/wedgeberry/main/wedge-conf.sh"
+###############################################################################
+# -- begin system/update.sh
+###############################################################################
+SCRIPT_GITHUB_URL="https://raw.githubusercontent.com/haxrob/wedgeberry/main/build/wedge-conf.sh"
 function check_updates() {
     current_script="${BASH_SOURCE[0]}"
     contents=$(curl --silent $SCRIPT_GITHUB_URL) 
@@ -979,6 +1098,9 @@ function check_updates() {
        msg_box 8 "No new updates found"
     fi
 }
+###############################################################################
+# -- begin system/wlan.sh
+###############################################################################
 
 # wifi defaults
 DEFAULT_WIFI_CHANNEL=11
@@ -1053,7 +1175,7 @@ function setup_hostap() {
       if [ $? -ne -0 ]; then
          return 1
       fi
-      
+ 
       # allow 0 or 8 or more characters. 0 means public wifi
       len=${#AP_PASSWORD}
       while [[ $len -ne 0 ]] && [[ $len -le 7 ]]; do
@@ -1071,6 +1193,7 @@ function setup_hostap() {
       AP_PASSWORD=$DEFAULT_WIFI_PASSWORD
    fi
 
+   bssid=$(random_mac)
    hostap_contents=(
       "interface=${WLAN_IFACE}"
       "driver=nl80211"
@@ -1081,6 +1204,7 @@ function setup_hostap() {
       "macaddr_acl=0"
       "auth_algs=1"
       "wmm_enabled=0"
+      "bssid=${bssid}"
    )
 
    # TODO: fix public wifi
@@ -1244,10 +1368,15 @@ function set_ssid() {
    fi
 }
 function set_random_ssid() {
-   local ssid=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-10} | head -n 1)
-   if yesno_box 8 "SSID will be changed to: ${ssid}. Continue?"; then
+   
+   # ssid 5 characters (make it easy to type on a phone etc)
+   local ssid=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-5} | head -n 1)
+   local bssid=$(random_mac)
+   if yesno_box 12 "SSID will be changed to: '${ssid}'.\nBSSID will be set to: '${bssid}'\nContinue?"; then
       set_ssid $ssid
+      set_bssid $bssid
    fi
+
 }
 
 function set_ssid_text() {
@@ -1256,78 +1385,63 @@ function set_ssid_text() {
 }
 
 function ssid_from_config() {
-   grep -oP 'ssid=\K.+' /etc/hostapd/hostapd.conf
+   grep -oP '^ssid=\K.+' /etc/hostapd/hostapd.conf
 }
 
+function random_mac() {
+   local mac
+   mac=$(od -An -N6 -t xC /dev/urandom | sed -e 's/ /:/g')
+   echo "${mac:1}"
+}
+function set_bssid() {
+   local bssid=$1
+   sed -i '/bssid=/d' $hostap_conf
+   echo "bssid=${bssid}" >> $hostap_conf 
+}
+###############################################################################
+# -- begin modules/capture.sh
+###############################################################################
 
-################################################################################
-# writes dhcpcd configuration
-# returns: 0
-################################################################################
-function set_dhcpcd() {
+function hosts_with_leases() {
 
-   wlan_contents=(
-      "interface ${WLAN_IFACE}"
-      "static ip_address=${WLAN_STATIC_ADDR}"
-      "nohook wpa_supplicant"
-   )
-   lines=$(printf '%s\n' "${wlan_contents[@]}" | sed '/^$/d')
-
-   # replace everything under "interface <wlan interface>" until blank line
-   # TODO: I don't think this is the best approach, but we don't want to 
-   # blast away any existing config. need to evaluate this furter.
-   
-   sed -i "/interface ${WLAN_IFACE}/,/^$/d" /etc/dhcpcd.conf
-   echo "$lines" >> /etc/dhcpcd.conf
-
-   # different approach (not used), find line number if existing config and then delete
-   # from there
-
-   #lineno=$(grep -n "interface wlan0" /etc/dhcpcd.conf | cut -d: -f1)
-   #if [ $? -ne 0 ]; then
-   #   echo "$lines" >> /etc/dhcpcd.conf
-   #   return
-   #fi
-
-   #edit from line number
-   #sed "$lineno,$((lineno+2))s/static ip_address=.*/static ip_address=$host_min/g" /etc/dhcpcd.conf
+    leases_file="/var/lib/misc/dnsmasq.leases"
+    stations=$(iw dev wlan0 station dump | grep Station | cut -d' ' -f2 | tr '\n' ' ')
+    ip_list=()
+    for mac in $stations; do
+        if grep -q "$mac" "$leases_file"; then
+            ip_list+=( $(cat $leases_file | cut -d' ' -f3) )
+        fi
+    done
+    echo "$ip_list"
 }
 
-function cleanup_dhcpcd() {
-   rm -f /etc/dhcpcd.conf
-   
-   # note service will be stopped from stop_services later
-}
-DNS_LOG_FILE="${HOME}/wedge-dns.log"
+function packet_capture_toggle() {
+    capture_dir="$HOME/wedge-captures"
+    if pgrep tshark > /dev/null 2>&1; then
+        pkill tcpdump 
+        return
+    fi
+    tmp_file=$(mktemp)
+    client_ip=$(hosts_with_leases)
+    tcpdump -i wlan0 -w $tmp_file host $client_ip 2>/dev/null & 
+    if ! pgrep tcpdump; then
+        msg_box 8 "tcpdump could not run"
+        return
+    fi
+    msg_box 8 "Capturing traffic for ${client_ip}. Press enter to stop"
+    pkill tcpdump 
+    if [ ! -d "$capture_dir" ]; then
+        mkdir "$capture_dir"
+    fi
 
-################################################################################
-# configure dnsmasq needed to issue IP addresses to wlan clients
-# returns: 0
-################################################################################
-function conf_dnsmasq() {
-   dnsmasq_conf="/etc/dnsmasq.conf"
-
-   last_octet=$(echo $AP_ADDR | cut -d'.' -f 4)
-   dhcp_start_addr="$(echo $AP_ADDR | cut -d. -f1,2,3).$((last_octet+1))"
-
-   dnsmasq_contents=(
-      "interface=${WLAN_IFACE}"
-      "listen-address=${AP_ADDR}"
-      "dhcp-range=${dhcp_start_addr},${WIFI_NET_HOST_MAX},${WIFI_NET_MASK},24h"
-      "bind-dynamic"
-      "domain-needed"
-      "bogus-priv"
-      "log-queries"
-      "log-facility=${DNS_LOG_FILE}"
-   )
-
-   printf '%s\n' "${dnsmasq_contents[@]}" | sed '/^$/d' > $dnsmasq_conf
+    new_file="$capture_dir/${client_ip}_$(date +%Y%m%d_%H%M%S).pcap"
+    mv $tmp_file $new_file
+    msg_box 8 "Capture saved at '$new_file'"
 
 }
-
-function cleanup_dnsmasq() {
-   rm -f /etc/dnsmasq.conf
-}
+###############################################################################
+# -- begin modules/mitmproxy.sh
+###############################################################################
 
 ################################################################################
 # set ports to redirect to mitmproxy service
@@ -1475,8 +1589,9 @@ function remove_mitmweb_service() {
    unset_mitmproxy_iptables
    set_conf_param MITMWEB_SERVICE 0
 }
-
-
+###############################################################################
+# -- begin modules/portfwd.sh
+###############################################################################
 function conf_port_fwd() {
    valid_input=1
    desthost=$(input_box "Enter proxy host and port (e.g. 1.2.3.4:8080)" "127.0.0.1:8080" $UPSTREAM_PROXY_HOST)
@@ -1509,19 +1624,9 @@ function conf_port_fwd() {
    done
 
 }
-function termshark_run() {
-    termshark_check_install
-    msg_box 8 "termshark will now listen on ${WLAN_IFACE}"
-    termshark -i $WLAN_IFACE
-}
-function termshark_check_install() {
-    if ! is_installed "termshark"; then
-        if yesno_box 8 "Termshark is not installed. Install now?"; then
-            check_if_apt_update
-            apt install -y termshark
-        fi
-    fi
-}
+###############################################################################
+# -- begin modules/tor.sh.sh
+###############################################################################
 
 ################################################################################
 # redirect dns and tcp flows to tor services
@@ -1624,6 +1729,10 @@ function check_tor_connectivity() {
    fi
    return 0
 }
+###############################################################################
+# -- begin modules/wireguard.sh
+###############################################################################
+
 # wireguard defaults
 WG_IFACE="wg-wedge"
 WG_CONF_PATH="/etc/wireguard/${WG_IFACE}.conf"
@@ -1819,6 +1928,7 @@ function cleanup_wireguard() {
    ip route flush table $WG_ROUTE_TABLE 
    systemctl disable wg-quick@$WG_IFACE.service
 }
+
 # final bash script is generated via Makefile. Inform user if they attempt to run wrong script
 if ! type -t healthcheck > /dev/null; then
    echo "Required functions undefined. Please run generated wedge-conf.sh, e.g. 'make; ./wedge-conf.sh'"

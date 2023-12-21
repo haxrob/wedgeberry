@@ -1,5 +1,7 @@
-
-SCRIPT_GITHUB_URL="https://raw.githubusercontent.com/haxrob/wedgeberry/main/wedge-conf.sh"
+###############################################################################
+# -- begin system/update.sh
+###############################################################################
+SCRIPT_GITHUB_URL="https://raw.githubusercontent.com/haxrob/wedgeberry/main/build/wedge-conf.sh"
 function check_updates() {
     current_script="${BASH_SOURCE[0]}"
     contents=$(curl --silent $SCRIPT_GITHUB_URL) 

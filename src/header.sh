@@ -26,18 +26,6 @@ fi
 
 
 
-function is_not_setup() {
-   if [ "$STATUS_STATE" -ne 1 ]; then
-      if yesno_box 8 "Initial setup has not been run. Would you like to run it now?"; then
-         ap_setup_menu
-         return 1
-      fi
-      msg_box 8 "Initial setup must be run before continuing"
-      return 0
-   fi
-   return 1
-}
-
 
 
 ################################################################################

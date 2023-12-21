@@ -1,4 +1,6 @@
-
+###############################################################################
+# -- begin system/healthcheck.sh
+###############################################################################
 
 # TODO: Seperate functionality into each "module" file
 function healthcheck() {

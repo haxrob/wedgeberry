@@ -1,4 +1,6 @@
-
+###############################################################################
+# -- begin modules/portfwd.sh
+###############################################################################
 function conf_port_fwd() {
    valid_input=1
    desthost=$(input_box "Enter proxy host and port (e.g. 1.2.3.4:8080)" "127.0.0.1:8080" $UPSTREAM_PROXY_HOST)

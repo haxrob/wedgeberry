@@ -1,4 +1,6 @@
-
+###############################################################################
+# -- begin system/uninstall.sh
+###############################################################################
 function uninstall() {
    if ! yesno_box 8 "Remove all configuration files?"; then
       return

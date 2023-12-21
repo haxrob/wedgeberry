@@ -1,7 +1,6 @@
-
-################################################################################
-# root level main menu 
-################################################################################
+###############################################################################
+# -- begin system/menus.sh
+###############################################################################
 function main_menu {
    local options
    local choice
@@ -12,10 +11,11 @@ function main_menu {
       options=(
          "1 Wireless LAN" "Initial setup and configuration options"
          "2 Connectivity" "Setup optional VPN, proxy or Tor network"
-         "3 Mitmproxy" "Configure mitmproxy service"
-         "4 Health check" "Check status of system components"
-         "5 Update" "Update this tool to the latest version"
-         "6 Uninstall" "Remove all configurations and software"
+         "3 Mitmproxy" "Configure mitmproxy web service"
+         "4 Logging" "DNS logging, flow logging"
+         "5 Health check" "Check status of system components"
+         "6 Update" "Update this tool to the latest version"
+         "7 Uninstall" "Remove all configurations and software"
       )
 
       status=$(get_status_text)
@@ -27,9 +27,10 @@ function main_menu {
          1\ *) wlan_menu;;
          2\ *) tunnel_config_menu ;;
          3\ *) mitmproxy_main_menu;;
-         4\ *) healthcheck ;;
-         5\ *) check_updates ;;
-         6\ *) uninstall ;;
+         4\ *) logging_menu;;
+         5\ *) healthcheck ;;
+         6\ *) check_updates ;;
+         7\ *) uninstall ;;
       esac
    done
 }
@@ -151,10 +152,11 @@ function backtitle_text() {
    fi
    ssid=$(ssid_from_config)
 
+   hostapd_status="DOWN"
    if pgrep hostapd > /dev/null 2>&1; then
-      hostapd_status="UP"
-   else 
-      hostapd_status="DOWN"
+      if ifconfig $WLAN_IFACE | grep -q 'RUNNING'; then
+         hostapd_status="UP"
+      fi
    fi 
 
    mitmweb_url="mitmweb: " 
@@ -230,7 +232,7 @@ function is_not_setup() {
 function set_ssid_menu() {
     options=(
       "1 Manual" "Enter SSID Wifi network name" 
-      "2 Random" "Generate and set random Wifi network name" 
+      "2 Random" "Generate random SSID and BSSID (mac address)" 
       "3 Back" "Return to previous menu"
    )
    if ! choice=$(menu "Select option" options); then
@@ -271,3 +273,27 @@ function mitmproxy_main_menu() {
    esac
 }
 
+function logging_menu() {
+   local options
+   local choice
+   if pgrep tshark; then
+      start_stop="Stop"
+   else
+      start_stop="Start"
+   fi
+
+   options=(
+     "1 ${start_stop}" "${start_stop} packet capture"
+     "2 Show conversations" "Show converstations based on capture"
+     "3 Back" "Return to previous menu"
+   )
+   if ! choice=$(menu "Select an option"); then
+      return
+   fi
+   case $choice in
+      1\ *) packet_capture_toggle;;
+      2\ *) packet_capture_conversations;;
+      3\ *) return;;
+   esac
+   tools_menu
+}

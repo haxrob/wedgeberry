@@ -1,3 +1,6 @@
+###############################################################################
+# -- begin system/services.sh
+###############################################################################
 
 REQUIRED_SERVICES=(dnsmasq hostapd dhcpcd)
 # resolvconf required for wireguard
