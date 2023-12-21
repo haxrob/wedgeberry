@@ -32,3 +32,21 @@ function conf_dnsmasq() {
 function cleanup_dnsmasq() {
    rm -f /etc/dnsmasq.conf
 }
+
+
+function show_dns_entries() {
+   source_ip="$1"
+   temp_file=$(mktemp)
+   grep "from ${source_ip}" $DNS_LOG_FILE | cut -d' ' -f1,2,3,6 > "$temp_file"
+   nano "$temp_file"
+   unlink "$temp_file"
+}
+
+function clear_dns_log() {
+   echo > $DNS_LOG_FILE
+}
+
+function show_dns_log() {
+   host=$(hosts_with_leases)
+   show_dns_entries $host
+}

@@ -34,6 +34,8 @@ function uninstall() {
       apt-get -y remove "$package"
    done
 
+   apt -f autoremove
+
    if yesno_box 8 "Recommended to reboot. Continue?";then
       /usr/sbin/reboot
    fi

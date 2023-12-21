@@ -150,24 +150,28 @@ function backtitle_text() {
    if [ "$station_count" -eq 1 ]; then
       station_text="1 client"
    fi
-   ssid=$(ssid_from_config)
+   if ssid=$(ssid_from_config); then
+      ap_info_text="¦ ssid: '${ssid}' → ${station_text}"
+   else
+      ap_info_text=""
+   fi
 
-   hostapd_status="DOWN"
+   hostapd_status="DOWN "
    if pgrep hostapd > /dev/null 2>&1; then
       if ifconfig $WLAN_IFACE | grep -q 'RUNNING'; then
-         hostapd_status="UP"
+         hostapd_status="UP "
       fi
    fi 
 
    mitmweb_url="mitmweb: " 
-   mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep -v 8080 | awk '{print $4}')"
+   mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep python | grep -v 8080 | awk '{print $4}')"
    if [[ $mitmweb_svc != "" ]]; then
-      mitmweb_url="http://${mitmweb_svc}"
+      mitmweb_url+="http://${mitmweb_svc}"
    else
-      mitmweb_url="not running"
+      mitmweb_url+="not running"
    fi
 
-   echo -e "| WLAN AP: $hostapd_status ¦ ssid: '${ssid}' → ${station_text} | ${mitmweb_url} |"
+   echo -e "| WLAN AP: $hostapd_status${ap_info_text} | ${mitmweb_url} |"
 }
 
 ################################################################################
@@ -276,6 +280,8 @@ function mitmproxy_main_menu() {
 function logging_menu() {
    local options
    local choice
+   local start_stop
+
    if pgrep tshark; then
       start_stop="Stop"
    else
@@ -283,17 +289,21 @@ function logging_menu() {
    fi
 
    options=(
-     "1 ${start_stop}" "${start_stop} packet capture"
-     "2 Show conversations" "Show converstations based on capture"
-     "3 Back" "Return to previous menu"
+     "1 ${start_stop} capture" "${start_stop} packet capture of connected station"
+     "2 Filter conversations" "Generate conversation file based on capture"
+     "3 Show DNS log" "Display records in DNS log"
+     "4 Clear DNS log" "Clear all records from DNS log"
+     "5 Back" "Return to previous menu"
    )
-   if ! choice=$(menu "Select an option"); then
+   if ! choice=$(menu "Select an option" options); then
       return
    fi
    case $choice in
       1\ *) packet_capture_toggle;;
       2\ *) packet_capture_conversations;;
-      3\ *) return;;
+      3\ *) show_dns_log;;
+      4\ *) clear_dns_log;;
+      5\ *) return;;
    esac
-   tools_menu
+   logging_menu
 }

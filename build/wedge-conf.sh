@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generated Thu 21 Dec 02:55:59 GMT 2023
+# Generated Thu 21 Dec 13:46:05 GMT 2023
 
 # MIT License
 # 
@@ -126,6 +126,11 @@ function cleanup_dhcpcd() {
    
    # note service will be stopped from stop_services later
 }
+
+function leased_ips() {
+   leases_file="/var/lib/misc/dnsmasq.leases"
+   cat $leases_file | cut -d' ' -f3
+} 
 ###############################################################################
 # -- begin modules/dnsmasq.sh
 ###############################################################################
@@ -159,6 +164,24 @@ function conf_dnsmasq() {
 
 function cleanup_dnsmasq() {
    rm -f /etc/dnsmasq.conf
+}
+
+
+function show_dns_entries() {
+   source_ip="$1"
+   temp_file=$(mktemp)
+   grep "from ${source_ip}" $DNS_LOG_FILE | cut -d' ' -f1,2,3,6 > "$temp_file"
+   nano "$temp_file"
+   unlink "$temp_file"
+}
+
+function clear_dns_log() {
+   echo > $DNS_LOG_FILE
+}
+
+function show_dns_log() {
+   host=$(hosts_with_leases)
+   show_dns_entries $host
 }
 ###############################################################################
 # -- begin system/healthcheck.sh
@@ -563,24 +586,28 @@ function backtitle_text() {
    if [ "$station_count" -eq 1 ]; then
       station_text="1 client"
    fi
-   ssid=$(ssid_from_config)
+   if ssid=$(ssid_from_config); then
+      ap_info_text="¦ ssid: '${ssid}' → ${station_text}"
+   else
+      ap_info_text=""
+   fi
 
-   hostapd_status="DOWN"
+   hostapd_status="DOWN "
    if pgrep hostapd > /dev/null 2>&1; then
       if ifconfig $WLAN_IFACE | grep -q 'RUNNING'; then
-         hostapd_status="UP"
+         hostapd_status="UP "
       fi
    fi 
 
    mitmweb_url="mitmweb: " 
-   mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep -v 8080 | awk '{print $4}')"
+   mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep python | grep -v 8080 | awk '{print $4}')"
    if [[ $mitmweb_svc != "" ]]; then
-      mitmweb_url="http://${mitmweb_svc}"
+      mitmweb_url+="http://${mitmweb_svc}"
    else
-      mitmweb_url="not running"
+      mitmweb_url+="not running"
    fi
 
-   echo -e "| WLAN AP: $hostapd_status ¦ ssid: '${ssid}' → ${station_text} | ${mitmweb_url} |"
+   echo -e "| WLAN AP: $hostapd_status${ap_info_text} | ${mitmweb_url} |"
 }
 
 ################################################################################
@@ -689,6 +716,8 @@ function mitmproxy_main_menu() {
 function logging_menu() {
    local options
    local choice
+   local start_stop
+
    if pgrep tshark; then
       start_stop="Stop"
    else
@@ -696,19 +725,23 @@ function logging_menu() {
    fi
 
    options=(
-     "1 ${start_stop}" "${start_stop} packet capture"
-     "2 Show conversations" "Show converstations based on capture"
-     "3 Back" "Return to previous menu"
+     "1 ${start_stop} capture" "${start_stop} packet capture of connected station"
+     "2 Filter conversations" "Generate conversation file based on capture"
+     "3 Show DNS log" "Display records in DNS log"
+     "4 Clear DNS log" "Clear all records from DNS log"
+     "5 Back" "Return to previous menu"
    )
-   if ! choice=$(menu "Select an option"); then
+   if ! choice=$(menu "Select an option" options); then
       return
    fi
    case $choice in
       1\ *) packet_capture_toggle;;
       2\ *) packet_capture_conversations;;
-      3\ *) return;;
+      3\ *) show_dns_log;;
+      4\ *) clear_dns_log;;
+      5\ *) return;;
    esac
-   tools_menu
+   logging_menu
 }
 ###############################################################################
 # -- begin system/menu_widgets.sh
@@ -767,7 +800,7 @@ function menu() {
 ###############################################################################
 # -- begin system/misc.sh
 ###############################################################################
-function is_invalid_net() {
+function _is_invalid_net() {
    if [[ -z $1 ]]; then
       return 0
    fi
@@ -793,11 +826,71 @@ function whoami() {
    who am i | awk '{print $1}'
 }
 
+function is_invalid_net() {
+   if [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]{2}$ ]]; then
+      echo a
+      return 1
+   fi
+   echo b
+   return 0
+}
+
+#####
+# https://stackoverflow.com/questions/15429420/given-the-ip-and-netmask-how-can-i-calculate-the-network-address-using-bash
+######
+
+
+function ip2int() {
+    local a b c d
+    { IFS=. read a b c d; } <<< $1
+    echo $(((((((a << 8) | b) << 8) | c) << 8) | d))
+}
+
+function int2ip() {
+    local ui32=$1; shift
+    local ip n
+    for n in 1 2 3 4; do
+        ip=$((ui32 & 0xff))${ip:+.}$ip
+        ui32=$((ui32 >> 8))
+    done
+    echo $ip
+}
+
+function netmask() # Example: netmask 24 => 255.255.255.0
+{
+    local mask=$((0xffffffff << (32 - $1))); shift
+    int2ip $mask
+}
+
+
+function broadcast() # Example: broadcast 192.0.2.0 24 => 192.0.2.255
+{
+    local addr=$(ip2int $1); shift
+    local mask=$((0xffffffff << (32 -$1))); shift
+    int2ip $((addr | ~mask))
+}
+
+function network() # Example: network 192.0.2.0 24 => 192.0.2.0
+{
+    local addr=$(ip2int $1); shift
+    local mask=$((0xffffffff << (32 -$1))); shift
+    int2ip $((addr & mask))
+}
+
+function hostmin() {
+   i=$(ip2int $(network $1 $2))
+   int2ip $((i+1))
+}
+
+function hostmax() {
+   i=$(ip2int $(broadcast $1 $2))
+   int2ip $((i-1))
+}
 ###############################################################################
 # -- begin system/packages.sh
 ###############################################################################
 
-REQUIRED_PACKAGES=(iptables ipcalc dnsmasq hostapd dhcpcd resolvconf)
+REQUIRED_PACKAGES=(iptables dnsmasq hostapd dhcpcd resolvconf)
 OPTIONAL_PACKAGES=(tor wireguard termshark)
 
 ################################################################################
@@ -1075,6 +1168,8 @@ function uninstall() {
       apt-get -y remove "$package"
    done
 
+   apt -f autoremove
+
    if yesno_box 8 "Recommended to reboot. Continue?";then
       /usr/sbin/reboot
    fi
@@ -1086,16 +1181,23 @@ function uninstall() {
 SCRIPT_GITHUB_URL="https://raw.githubusercontent.com/haxrob/wedgeberry/main/build/wedge-conf.sh"
 function check_updates() {
     current_script="${BASH_SOURCE[0]}"
-    contents=$(curl --silent $SCRIPT_GITHUB_URL) 
-    remote_hash=$(echo -n $contents | md5sum | cut -d' ' -f1)
-    my_hash=$(cat $current_script | md5sum | cut -d' ' -f1)
+    temp_file=$(mktemp)
+    if ! curl --silent "$SCRIPT_GITHUB_URL" -o "$temp_file"; then
+        msg_box 8 "Unable to fetch update"
+        return
+    fi
+    remote_hash=$(md5sum "$temp_file" | cut -d' ' -f1)
+    my_hash=$(md5sum "$current_script" | cut -d' ' -f1)
     if [[ $remote_hash != $my_hash ]]; then
-        if yesno_box 8 "A newer version was found. ?"; then
-            echo "$contents" > $current_script
+        if yesno_box 8 "A newer version was found. Update?"; then
+            mv $temp_file $current_script
+            chmod a+rwx $current_script
             exec $current_script 
+            msg_box 8 blah
         fi
     else
        msg_box 8 "No new updates found"
+       unlink $temp_file
     fi
 }
 ###############################################################################
@@ -1248,13 +1350,19 @@ function set_wifi_network() {
          msg_box 8 "Enter valid network"
       fi
    done
-   ipcalc=$(ipcalc -n -b $WIFI_NET)
-   AP_ADDR=$(echo "$ipcalc" | grep HostMin | awk '{print $2}')
+   netpart=$(echo -n $WIFI_NET | cut -d'/' -f1)
+   maskpart=$(echo -n $WIFI_NET | cut -d'/' -f2)
+   #ipcalc=$(ipcalc -n -b $WIFI_NET)
+   #AP_ADDR=$(echo "$ipcalc" | grep HostMin | awk '{print $2}')
+   AP_ADDR=$(hostmin $netpart $maskpart)
    set_conf_param AP_ADDR $AP_ADDR
-   WIFI_NET_HOST_MAX=$(echo "$ipcalc" | grep HostMax | awk '{print $2}')
-   WIFI_NET_MASK=$(echo "$ipcalc" | grep Netmask | awk '{print $2}')
-   subnet_bits=$(echo $WIFI_NET | cut -d'/' -f2)
-   WLAN_STATIC_ADDR="${AP_ADDR}/${subnet_bits}"
+   #WIFI_NET_HOST_MAX=$(echo "$ipcalc" | grep HostMax | awk '{print $2}')
+   WIFI_NET_HOST_MAX=$(hostmax $netpart $maskpart)
+   #WIFI_NET_MASK=$(echo "$ipcalc" | grep Netmask | awk '{print $2}')
+   WIFI_NET_MASK=$(netmask $maskpart)
+   #subnet_bits=$(echo $WIFI_NET | cut -d'/' -f2)
+   #WLAN_STATIC_ADDR="${AP_ADDR}/${subnet_bits}"
+   WLAN_STATIC_ADDR="${AP_ADDR}/${netpart}"
 }
 ################################################################################
 # write hostap_contents to the hostapd configuration file(s)
@@ -1412,7 +1520,11 @@ function hosts_with_leases() {
             ip_list+=( $(cat $leases_file | cut -d' ' -f3) )
         fi
     done
+    if [ "${#ip_list[@]}" -eq 0 ]; then
+        return 1
+    fi
     echo "$ip_list"
+    return 0
 }
 
 function packet_capture_toggle() {
@@ -1422,7 +1534,10 @@ function packet_capture_toggle() {
         return
     fi
     tmp_file=$(mktemp)
-    client_ip=$(hosts_with_leases)
+    if ! client_ip=$(hosts_with_leases); then
+        msg_box 8 "No connected devices"
+        return
+    fi
     tcpdump -i wlan0 -w $tmp_file host $client_ip 2>/dev/null & 
     if ! pgrep tcpdump; then
         msg_box 8 "tcpdump could not run"
@@ -1438,6 +1553,19 @@ function packet_capture_toggle() {
     mv $tmp_file $new_file
     msg_box 8 "Capture saved at '$new_file'"
 
+}
+
+function converstations() {
+    local pcap_file
+    local proto
+    pcap_file=$1
+    proto=$2
+    tshark -r $pcap_file -q  -z conv,$proto 2> /dev/null | awk '$2 == "<->" { print $1 " " $2 " " $3 }'
+}
+
+function packet_capture_conversations() {
+    msg_box 8 "No implemented"
+    return
 }
 ###############################################################################
 # -- begin modules/mitmproxy.sh

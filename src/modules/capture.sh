@@ -12,7 +12,11 @@ function hosts_with_leases() {
             ip_list+=( $(cat $leases_file | cut -d' ' -f3) )
         fi
     done
+    if [ "${#ip_list[@]}" -eq 0 ]; then
+        return 1
+    fi
     echo "$ip_list"
+    return 0
 }
 
 function packet_capture_toggle() {
@@ -22,7 +26,10 @@ function packet_capture_toggle() {
         return
     fi
     tmp_file=$(mktemp)
-    client_ip=$(hosts_with_leases)
+    if ! client_ip=$(hosts_with_leases); then
+        msg_box 8 "No connected devices"
+        return
+    fi
     tcpdump -i wlan0 -w $tmp_file host $client_ip 2>/dev/null & 
     if ! pgrep tcpdump; then
         msg_box 8 "tcpdump could not run"
@@ -38,4 +45,17 @@ function packet_capture_toggle() {
     mv $tmp_file $new_file
     msg_box 8 "Capture saved at '$new_file'"
 
+}
+
+function converstations() {
+    local pcap_file
+    local proto
+    pcap_file=$1
+    proto=$2
+    tshark -r $pcap_file -q  -z conv,$proto 2> /dev/null | awk '$2 == "<->" { print $1 " " $2 " " $3 }'
+}
+
+function packet_capture_conversations() {
+    msg_box 8 "No implemented"
+    return
 }

@@ -2,7 +2,7 @@
 # -- begin system/packages.sh
 ###############################################################################
 
-REQUIRED_PACKAGES=(iptables ipcalc dnsmasq hostapd dhcpcd resolvconf)
+REQUIRED_PACKAGES=(iptables dnsmasq hostapd dhcpcd resolvconf)
 OPTIONAL_PACKAGES=(tor wireguard termshark)
 
 ################################################################################

@@ -1,3 +1,4 @@
 - Traffic flow logging
 - DNS log info
+   - menu to select leased IP
 - Firewalling (based on flows?)

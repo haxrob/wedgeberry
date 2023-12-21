@@ -148,13 +148,19 @@ function set_wifi_network() {
          msg_box 8 "Enter valid network"
       fi
    done
-   ipcalc=$(ipcalc -n -b $WIFI_NET)
-   AP_ADDR=$(echo "$ipcalc" | grep HostMin | awk '{print $2}')
+   netpart=$(echo -n $WIFI_NET | cut -d'/' -f1)
+   maskpart=$(echo -n $WIFI_NET | cut -d'/' -f2)
+   #ipcalc=$(ipcalc -n -b $WIFI_NET)
+   #AP_ADDR=$(echo "$ipcalc" | grep HostMin | awk '{print $2}')
+   AP_ADDR=$(hostmin $netpart $maskpart)
    set_conf_param AP_ADDR $AP_ADDR
-   WIFI_NET_HOST_MAX=$(echo "$ipcalc" | grep HostMax | awk '{print $2}')
-   WIFI_NET_MASK=$(echo "$ipcalc" | grep Netmask | awk '{print $2}')
-   subnet_bits=$(echo $WIFI_NET | cut -d'/' -f2)
-   WLAN_STATIC_ADDR="${AP_ADDR}/${subnet_bits}"
+   #WIFI_NET_HOST_MAX=$(echo "$ipcalc" | grep HostMax | awk '{print $2}')
+   WIFI_NET_HOST_MAX=$(hostmax $netpart $maskpart)
+   #WIFI_NET_MASK=$(echo "$ipcalc" | grep Netmask | awk '{print $2}')
+   WIFI_NET_MASK=$(netmask $maskpart)
+   #subnet_bits=$(echo $WIFI_NET | cut -d'/' -f2)
+   #WLAN_STATIC_ADDR="${AP_ADDR}/${subnet_bits}"
+   WLAN_STATIC_ADDR="${AP_ADDR}/${netpart}"
 }
 ################################################################################
 # write hostap_contents to the hostapd configuration file(s)
