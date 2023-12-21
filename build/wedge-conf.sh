@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generated Thu 21 Dec 13:46:05 GMT 2023
+# Generated Thu 21 Dec 22:14:20 GMT 2023
 
 # MIT License
 # 
@@ -129,7 +129,7 @@ function cleanup_dhcpcd() {
 
 function leased_ips() {
    leases_file="/var/lib/misc/dnsmasq.leases"
-   cat $leases_file | cut -d' ' -f3
+   cat $leases_file | cut -d' ' -f3 | tr '\n' ' '
 } 
 ###############################################################################
 # -- begin modules/dnsmasq.sh
@@ -170,7 +170,7 @@ function cleanup_dnsmasq() {
 function show_dns_entries() {
    source_ip="$1"
    temp_file=$(mktemp)
-   grep "from ${source_ip}" $DNS_LOG_FILE | cut -d' ' -f1,2,3,6 > "$temp_file"
+   grep -a "from ${source_ip}" $DNS_LOG_FILE | cut -d' ' -f1,2,3,6 > "$temp_file"
    nano "$temp_file"
    unlink "$temp_file"
 }
@@ -178,10 +178,18 @@ function show_dns_entries() {
 function clear_dns_log() {
    echo > $DNS_LOG_FILE
 }
-
+## todo
 function show_dns_log() {
-   host=$(hosts_with_leases)
-   show_dns_entries $host
+   hosts="$(leased_ips)"
+   host_items=()
+   for host in $hosts; do
+      echo "==== $host"
+      host_items+=( $host "x" )
+   done
+   if ! choice=$(menu "Select host" host_items ); then
+      return
+   fi
+   show_dns_entries $choice
 }
 ###############################################################################
 # -- begin system/healthcheck.sh
@@ -513,6 +521,7 @@ function ap_setup_menu() {
    esac
 }
 
+## no longer used
 function tools_menu() {
    local options
    local choice
@@ -1526,6 +1535,8 @@ function hosts_with_leases() {
     echo "$ip_list"
     return 0
 }
+
+
 
 function packet_capture_toggle() {
     capture_dir="$HOME/wedge-captures"

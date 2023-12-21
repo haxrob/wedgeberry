@@ -19,6 +19,8 @@ function hosts_with_leases() {
     return 0
 }
 
+
+
 function packet_capture_toggle() {
     capture_dir="$HOME/wedge-captures"
     if pgrep tshark > /dev/null 2>&1; then

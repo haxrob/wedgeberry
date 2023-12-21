@@ -43,5 +43,5 @@ function cleanup_dhcpcd() {
 
 function leased_ips() {
    leases_file="/var/lib/misc/dnsmasq.leases"
-   cat $leases_file | cut -d' ' -f3
+   cat $leases_file | cut -d' ' -f3 | tr '\n' ' '
 } 

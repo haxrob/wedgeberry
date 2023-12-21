@@ -1,5 +1,5 @@
 # wedgeberry
-Wedgeberry is an interactive script that assists in repurposing a Raspberry Pi into a customizable Wifi access point with transparent proxying for TLS and other traffic inspection via [mitmproxy](https://mitmproxy.org/). Wedgeberry's primary goal is to streamline related installation and configuration while offering functionality that supports the privacy of the security tester (without having to host a segmented lab/network).  VPN/tunneling, firewalling and Wifi parameter randomization (BSSID, SSID) are optional features to support this goal. Additionally an upsteam  
+Wedgeberry is an interactive script that assists in repurposing a Raspberry Pi into a customizable Wifi access point with transparent proxying for TLS and other traffic inspection via [mitmproxy](https://mitmproxy.org/). Wedgeberry's primary goal is to automate setup steps while offering configuration options that supports the security tester's privacy. VPN/tunneling, firewall enforcement and Wifi parameter randomization (BSSID, SSID) are optional features to support this goal. Wedgeberry is intended to replace the need to setup a segmented LAN for IoT / mobile testing. 
 
 ![wedge-diagram](/images/connectivity.png)
 
@@ -9,7 +9,7 @@ Currently the following can be configured via the `wedge-config` interactive men
 - Mitmproxy as transparent proxy 
 - Routing all outbound traffic via Wireguard VPN tunnel
 - Forward TCP ports (and DNS) via the Tor network
-- Forward TCP ports to external interception proxy (BurpSuite) 
+- Forward TCP ports to external intproxy (BurpSuite) 
 
 `wedge-config.sh` will handle all the required package installs, `iptables` rules, `ip route` rules and systemd services for persistance (including mitmproxy).
 
@@ -21,7 +21,7 @@ The script was motivated by the Raspberry Pi `raspi-config` tool which provides 
 
 From a Raspberry Pi:
 ```
-wget https://raw.githubusercontent.com/haxrob/wedgeberry/main/wedge-conf.sh
+wget https://raw.githubusercontent.com/haxrob/wedgeberry/main/build/wedge-conf.sh
 sudo ./wedge-config.sh
 ```
 
@@ -30,6 +30,7 @@ Note, `wedge-config.sh` is 'build' by merging multiple bash scripts. Do not edit
 make clean
 make
 ```
+`wedge-config.sh` is emitted to the `./build` directory.
 
 Run with `-d` flag to write bash verbose output to logfile `wedge-debug.log` within the current working directory.
 
@@ -37,7 +38,6 @@ Run with `-d` flag to write bash verbose output to logfile `wedge-debug.log` wit
 - `mitmproxy` is installed to `/opt/mitmproxy` with `mitmweb` running as a service as `mitmproxy` user
 - DNS requests from `dnsmasq` are logged to `/root/wedge-dns.log`
 - Internal configuration file is written to `$HOME/.config/wedge.conf`
-
 ## Services
 
 # Menu items

@@ -77,6 +77,7 @@ function ap_setup_menu() {
    esac
 }
 
+## no longer used
 function tools_menu() {
    local options
    local choice

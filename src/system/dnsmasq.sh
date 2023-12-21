@@ -37,7 +37,7 @@ function cleanup_dnsmasq() {
 function show_dns_entries() {
    source_ip="$1"
    temp_file=$(mktemp)
-   grep "from ${source_ip}" $DNS_LOG_FILE | cut -d' ' -f1,2,3,6 > "$temp_file"
+   grep -a "from ${source_ip}" $DNS_LOG_FILE | cut -d' ' -f1,2,3,6 > "$temp_file"
    nano "$temp_file"
    unlink "$temp_file"
 }
@@ -45,8 +45,16 @@ function show_dns_entries() {
 function clear_dns_log() {
    echo > $DNS_LOG_FILE
 }
-
+## todo
 function show_dns_log() {
-   host=$(hosts_with_leases)
-   show_dns_entries $host
+   hosts="$(leased_ips)"
+   host_items=()
+   for host in $hosts; do
+      echo "==== $host"
+      host_items+=( $host " " )
+   done
+   if ! choice=$(menu "Select host" host_items ); then
+      return
+   fi
+   show_dns_entries $choice
 }
