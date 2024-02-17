@@ -2,6 +2,7 @@
 Wedgeberry is an interactive script that converts a Raspberry Pi into a customizable Wifi access point with transparent proxying for TLS and other traffic inspection via [mitmproxy](https://mitmproxy.org/). 
 Wedgeberry software differs from other similar software in that it supports flexiable traffic routing options such as VPN/tunneling, firewall enforcement. 
 
+In the following diagram, a configured scenario is depicted where an IoT device is connected to the Wifi AP (the Pi). The device's traffic is inspected by Mitmproxy before being sent out via a VPN or Tor or Burp (for HTTP tampering). In addition to the egress VPN concealling the origin network's IP address, the access point SSID/BSSID is randomized to prevent the IoT device from potentially exposing the geographic location to the device vendor. 
 ![wedge-diagram](/images/connectivity.png)
 
 # Installation
