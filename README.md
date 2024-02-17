@@ -6,13 +6,18 @@ Wedgeberry software differs from other similar software in that it supports flex
 
 Currently the following is supported and can be setup via the interative menu: 
 
-* WLAN AP parameters (SSID, BSSID, channel etc) 
-* Mitmproxy as an inline transparent proxy for traffic inspection
+* WLAN AP parameters (SSID, BSSID, channel, password, public etc.) 
+* Mitmproxy as an inline transparent proxy on the Pi 
+* Mitmweb as a system service
 * Routing WLAN traffic traffic via:
-    * Direct
+    * Direct wired / wlan interface
     * Wireguard VPN tunnel
     * TOR network (TCP+DNS) 
     * HTTP/S proxy (BurpSuite configured in transparent mode)
+* Log/monitoring support: 
+    * connected clients (wifi stations, dhcp clients) 
+    * DNS logs
+    * Raw traffic capture
 
 `wedge-config.sh` will handle all the required package installs, `iptables` rules, `ip route` rules and `systemd` services for persistance (including mitmproxy).
 
@@ -30,8 +35,7 @@ wget https://raw.githubusercontent.com/haxrob/wedgeberry/main/build/wedge-conf.s
 sudo ./wedge-config.sh
 ```
 
-__Note__: `wedge-config.sh` is build by merging multiple bash scripts. Do not edit it directly. 
-
+__Note__: `wedge-config.sh` is build by merging multiple bash scripts. It is not recommended to edit it directly. 
 To build `wedge-config.sh` from this repository, run:
 ```
 make
@@ -44,6 +48,7 @@ Run with `-d` flag to write bash verbose output to logfile `wedge-debug.log` wit
 - `mitmproxy` is installed to `/opt/mitmproxy` with `mitmweb` running as a service as `mitmproxy` user via (`/etc/systemd/system/mitmweb.servce`)
 - DNS requests from `dnsmasq` are logged to `/root/wedge-dns.log`
 - Internal configuration file is written to `/root/.config/wedge.conf`
+- Selecting 'Update' from the menu will fetch the latest version
 
 # Compatibility
 
@@ -53,7 +58,7 @@ It is recommended to use [latest Raspberry Pi images](https://www.raspberrypi.co
 
 # Packages
 
-The following packages are installed and/or managed by wedgeberry:
+The following packages are installed and configured:
 - dnsmasq 
 - hostapd
 - dhcpcd

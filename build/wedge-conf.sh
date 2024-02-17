@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generated Sat 17 Feb 11:44:38 GMT 2024
+# Generated Sat 17 Feb 12:22:13 GMT 2024
 
 # MIT License
 # 
@@ -453,8 +453,8 @@ function main_menu {
    while true; do
       reload_conf
       options=(
-         "1 WLAN Setup" "Initial setup and configuration options"
-         "2 Outbound routing" "Direct, VPN, http proxy Tor network"
+         "1 WLAN" "Configure Wifi AP, networking and monitor stations"
+         "2 Tunneling" "Send egress traffic via VPN, TOR or proxy server"
          "3 Mitmproxy" "Configure mitmproxy web service"
          "4 Logging" "DNS logging, flow logging"
          "5 Health check" "Check status of system components"
@@ -1627,6 +1627,7 @@ function set_mitmproxy_iptables() {
    sysctl -w net.ipv4.conf.all.send_redirects=0 > /dev/null 2>&1
    sysctl -p > /dev/null 2>&1
 
+   msg_box 8 "Note: TLS certificates are found in /opt/mitmproxy/.mitmproxy"
    if yesno_box 8 "(re)start mitmweb service?"; then
       if ! systemctl restart mitmweb; then
          msg_box 8 "There was an error starting mitmweb. See journalctl -xe"

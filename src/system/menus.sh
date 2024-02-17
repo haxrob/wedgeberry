@@ -9,8 +9,8 @@ function main_menu {
    while true; do
       reload_conf
       options=(
-         "1 WLAN Setup" "Initial setup and configuration options"
-         "2 Outbound routing" "Direct, VPN, http proxy Tor network"
+         "1 WLAN" "Configure Wifi AP, networking and monitor stations"
+         "2 Tunneling" "Send egress traffic via VPN, TOR or proxy server"
          "3 Mitmproxy" "Configure mitmproxy web service"
          "4 Logging" "DNS logging, flow logging"
          "5 Health check" "Check status of system components"
