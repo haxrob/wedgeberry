@@ -93,7 +93,7 @@ function setup_hostap() {
       AP_PASSWORD=$DEFAULT_WIFI_PASSWORD
    fi
 
-   bssid=$(random_mac)
+   #bssid=$(random_mac)
    hostap_contents=(
       "interface=${WLAN_IFACE}"
       "driver=nl80211"
@@ -104,8 +104,9 @@ function setup_hostap() {
       "macaddr_acl=0"
       "auth_algs=1"
       "wmm_enabled=0"
-      "bssid=${bssid}"
    )
+   # "bssid=${bssid}"
+   # ^ -- removed from hostap conf
 
    # TODO: fix public wifi
    if [[ -n $AP_PASSWORD ]]; then

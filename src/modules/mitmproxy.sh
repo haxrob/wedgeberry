@@ -34,11 +34,20 @@ function set_mitmproxy_iptables() {
    for port in ${ports//,/ }; do
       iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --dport $port -j  REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
       iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --dport $port -j REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
+      #iptables -t nat -A OUTPUT     -i $WLAN_IFACE -p tcp -m owner ! --uid-owner mitmproxy --dport $port -j  REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
+      #iptables -t nat -A OUTPUT     -i $WLAN_IFACE -p tcp -m owner ! --uid-owner mitmproxy --dport $port -j REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
    done
 
    # mitmproxy documentation recommends this
-   sysctl -w net.ipv4.conf.all.send_redirects=0
-   sysctl -p
+   sysctl -w net.ipv4.conf.all.send_redirects=0 > /dev/null 2>&1
+   sysctl -p > /dev/null 2>&1
+
+   msg_box 8 "Note: TLS certificates are found in /opt/mitmproxy/.mitmproxy"
+   if yesno_box 8 "(re)start mitmweb service?"; then
+      if ! systemctl restart mitmweb; then
+         msg_box 8 "There was an error starting mitmweb. See journalctl -xe"
+      fi
+   fi
 }
 
 ################################################################################

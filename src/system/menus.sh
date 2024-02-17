@@ -9,8 +9,8 @@ function main_menu {
    while true; do
       reload_conf
       options=(
-         "1 Wireless LAN" "Initial setup and configuration options"
-         "2 Connectivity" "Setup optional VPN, proxy or Tor network"
+         "1 WLAN Setup" "Initial setup and configuration options"
+         "2 Outbound routing" "Direct, VPN, http proxy Tor network"
          "3 Mitmproxy" "Configure mitmproxy web service"
          "4 Logging" "DNS logging, flow logging"
          "5 Health check" "Check status of system components"
@@ -165,14 +165,18 @@ function backtitle_text() {
    fi 
 
    mitmweb_url="mitmweb: " 
-   mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep python | grep -v 8080 | awk '{print $4}')"
-   if [[ $mitmweb_svc != "" ]]; then
-      mitmweb_url+="http://${mitmweb_svc}"
+   if pgrep mitmweb > /dev/null 2>&1; then
+      mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep python | grep -v 8080 | awk '{print $4}')"
+      if [[ $mitmweb_svc != "" ]]; then
+         mitmweb_url+="http://${mitmweb_svc}"
+      else 
+         mitmweb_url+="not running"
+      fi
    else
       mitmweb_url+="not running"
    fi
 
-   echo -e "| WLAN AP: $hostapd_status${ap_info_text} | ${mitmweb_url} |"
+   echo -e "| WLAN: $hostapd_status${ap_info_text} | ${mitmweb_url} |"
 }
 
 ################################################################################
@@ -197,7 +201,7 @@ function get_status_text() {
    fi
 
    if redir=$(mitmproxy_is_redirected); then
-      mitmproxy_text="[${redir}]¬ mitmproxy -»"
+      mitmproxy_text="[${redir}]¬ mitmproxy -» "
    fi
 
    #text="\n       "
@@ -208,10 +212,10 @@ function get_status_text() {
       BACKTITLE+="[DOWN]"
    fi
 
-   text+="${WLAN_IFACE} -» ${mitmproxy_text}${EXT_IFACE} -» "
+   text+="Traffic flow: ${WLAN_IFACE} -» ${mitmproxy_text}${EXT_IFACE} -» "
    case $TUNNEL_TYPE in
       DIRECT) text+="Internet";;
-      WIREGUARD) text+="Wireguard"
+      WIREGUARD) text+="Wireguard VPN"
       if ! wireguard_is_iface_setup; then
          text+="(DOWN)"
       fi

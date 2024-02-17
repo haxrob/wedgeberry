@@ -3,7 +3,7 @@
 ###############################################################################
 
 REQUIRED_PACKAGES=(iptables dnsmasq hostapd dhcpcd resolvconf)
-OPTIONAL_PACKAGES=(tor wireguard termshark)
+OPTIONAL_PACKAGES=(tor wireguard-tools wireguard )
 
 ################################################################################
 # check if package is installed on system. (lifted from raspi-conf)

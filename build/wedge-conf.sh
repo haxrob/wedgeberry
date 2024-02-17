@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generated Thu 21 Dec 22:14:20 GMT 2023
+# Generated Sat 17 Feb 11:44:38 GMT 2024
 
 # MIT License
 # 
@@ -184,7 +184,7 @@ function show_dns_log() {
    host_items=()
    for host in $hosts; do
       echo "==== $host"
-      host_items+=( $host "x" )
+      host_items+=( $host " " )
    done
    if ! choice=$(menu "Select host" host_items ); then
       return
@@ -453,8 +453,8 @@ function main_menu {
    while true; do
       reload_conf
       options=(
-         "1 Wireless LAN" "Initial setup and configuration options"
-         "2 Connectivity" "Setup optional VPN, proxy or Tor network"
+         "1 WLAN Setup" "Initial setup and configuration options"
+         "2 Outbound routing" "Direct, VPN, http proxy Tor network"
          "3 Mitmproxy" "Configure mitmproxy web service"
          "4 Logging" "DNS logging, flow logging"
          "5 Health check" "Check status of system components"
@@ -609,14 +609,18 @@ function backtitle_text() {
    fi 
 
    mitmweb_url="mitmweb: " 
-   mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep python | grep -v 8080 | awk '{print $4}')"
-   if [[ $mitmweb_svc != "" ]]; then
-      mitmweb_url+="http://${mitmweb_svc}"
+   if pgrep mitmweb > /dev/null 2>&1; then
+      mitmweb_svc="$(netstat -nltp | grep $(pgrep mitmweb) | grep python | grep -v 8080 | awk '{print $4}')"
+      if [[ $mitmweb_svc != "" ]]; then
+         mitmweb_url+="http://${mitmweb_svc}"
+      else 
+         mitmweb_url+="not running"
+      fi
    else
       mitmweb_url+="not running"
    fi
 
-   echo -e "| WLAN AP: $hostapd_status${ap_info_text} | ${mitmweb_url} |"
+   echo -e "| WLAN: $hostapd_status${ap_info_text} | ${mitmweb_url} |"
 }
 
 ################################################################################
@@ -641,7 +645,7 @@ function get_status_text() {
    fi
 
    if redir=$(mitmproxy_is_redirected); then
-      mitmproxy_text="[${redir}]¬ mitmproxy -»"
+      mitmproxy_text="[${redir}]¬ mitmproxy -» "
    fi
 
    #text="\n       "
@@ -652,10 +656,10 @@ function get_status_text() {
       BACKTITLE+="[DOWN]"
    fi
 
-   text+="${WLAN_IFACE} -» ${mitmproxy_text}${EXT_IFACE} -» "
+   text+="Traffic flow: ${WLAN_IFACE} -» ${mitmproxy_text}${EXT_IFACE} -» "
    case $TUNNEL_TYPE in
       DIRECT) text+="Internet";;
-      WIREGUARD) text+="Wireguard"
+      WIREGUARD) text+="Wireguard VPN"
       if ! wireguard_is_iface_setup; then
          text+="(DOWN)"
       fi
@@ -900,7 +904,7 @@ function hostmax() {
 ###############################################################################
 
 REQUIRED_PACKAGES=(iptables dnsmasq hostapd dhcpcd resolvconf)
-OPTIONAL_PACKAGES=(tor wireguard termshark)
+OPTIONAL_PACKAGES=(tor wireguard-tools wireguard )
 
 ################################################################################
 # check if package is installed on system. (lifted from raspi-conf)
@@ -974,7 +978,7 @@ function check_if_apt_update() {
 
 REQUIRED_SERVICES=(dnsmasq hostapd dhcpcd)
 # resolvconf required for wireguard
-OPTIONAL_SERVICES=(tor resolvconf )
+OPTIONAL_SERVICES=(tor resolvconf wireguard )
 
 ################################################################################
 # disable tunnels or other connectivity 
@@ -1304,7 +1308,7 @@ function setup_hostap() {
       AP_PASSWORD=$DEFAULT_WIFI_PASSWORD
    fi
 
-   bssid=$(random_mac)
+   #bssid=$(random_mac)
    hostap_contents=(
       "interface=${WLAN_IFACE}"
       "driver=nl80211"
@@ -1315,8 +1319,9 @@ function setup_hostap() {
       "macaddr_acl=0"
       "auth_algs=1"
       "wmm_enabled=0"
-      "bssid=${bssid}"
    )
+   # "bssid=${bssid}"
+   # ^ -- removed from hostap conf
 
    # TODO: fix public wifi
    if [[ -n $AP_PASSWORD ]]; then
@@ -1614,11 +1619,19 @@ function set_mitmproxy_iptables() {
    for port in ${ports//,/ }; do
       iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --dport $port -j  REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
       iptables -t nat -A PREROUTING -i $WLAN_IFACE -p tcp --dport $port -j REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
+      #iptables -t nat -A OUTPUT     -i $WLAN_IFACE -p tcp -m owner ! --uid-owner mitmproxy --dport $port -j  REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
+      #iptables -t nat -A OUTPUT     -i $WLAN_IFACE -p tcp -m owner ! --uid-owner mitmproxy --dport $port -j REDIRECT --to-port 8080 -m comment --comment WEDGE_MITMPROXY
    done
 
    # mitmproxy documentation recommends this
-   sysctl -w net.ipv4.conf.all.send_redirects=0
-   sysctl -p
+   sysctl -w net.ipv4.conf.all.send_redirects=0 > /dev/null 2>&1
+   sysctl -p > /dev/null 2>&1
+
+   if yesno_box 8 "(re)start mitmweb service?"; then
+      if ! systemctl restart mitmweb; then
+         msg_box 8 "There was an error starting mitmweb. See journalctl -xe"
+      fi
+   fi
 }
 
 ################################################################################
@@ -1916,10 +1929,7 @@ function set_wireguard_iptables() {
 # conf_wireguard
 ################################################################################
 function conf_wireguard() {
-   if ! is_not_setup; then
-      return
-   fi
-   if [ $? -ne 0 ]; then
+   if is_not_setup; then
       return
    fi
    

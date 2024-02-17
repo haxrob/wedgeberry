@@ -4,7 +4,7 @@
 
 REQUIRED_SERVICES=(dnsmasq hostapd dhcpcd)
 # resolvconf required for wireguard
-OPTIONAL_SERVICES=(tor resolvconf )
+OPTIONAL_SERVICES=(tor resolvconf wireguard )
 
 ################################################################################
 # disable tunnels or other connectivity 

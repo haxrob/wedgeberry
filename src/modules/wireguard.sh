@@ -46,10 +46,7 @@ function set_wireguard_iptables() {
 # conf_wireguard
 ################################################################################
 function conf_wireguard() {
-   if ! is_not_setup; then
-      return
-   fi
-   if [ $? -ne 0 ]; then
+   if is_not_setup; then
       return
    fi
    
