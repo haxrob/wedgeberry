@@ -10,8 +10,8 @@ In the following diagram, a configured scenario is depicted where an IoT device 
 From a Raspberry Pi:
 ```
 wget https://raw.githubusercontent.com/haxrob/wedgeberry/main/build/wedge-conf.sh
-chmod u+x wedge-config.sh
-sudo ./wedge-config.sh
+chmod u+x wedge-conf.sh
+sudo ./wedge-conf.sh
 ```
 ![wedge-config](/images/wedgemenu.png)
 
