@@ -1,4 +1,4 @@
-
+# `make` will append the contents of /src/* to this file
 
 # configuration options. When run as sudo this will be in root's home directory
 CONF_FILE="${HOME}/.config/wedge.conf"
@@ -13,7 +13,6 @@ if [[ $1 = "-d" ]]; then
    set -x
 fi
 
-
 # configuration parameters are reloaded 'from disk' each time a menu page is displayed
 function reload_conf() {
    . $CONF_FILE
@@ -23,10 +22,6 @@ function reload_conf() {
 if [ -e $CONF_FILE ]; then
    reload_conf
 fi
-
-
-
-
 
 ################################################################################
 # conf_file_setup

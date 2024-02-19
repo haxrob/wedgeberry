@@ -53,4 +53,5 @@ function setup_items() {
       return
    fi
    set_conf_param STATUS_STATE 1
+   main_menu
 }

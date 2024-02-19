@@ -2,10 +2,9 @@
 # -- begin system/sysctl.sh
 ###############################################################################
 function set_ipfwd() {
-   echo "Setting ipv4.ip_forward"
    sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
    echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
-   sysctl -p
+   sysctl -p > /dev/null 2>&1
 }
 
 function cleanup_sysctl() {

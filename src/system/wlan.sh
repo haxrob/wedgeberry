@@ -128,6 +128,14 @@ function setup_hostap() {
 ################################################################################
 function set_wifi_network() {
 
+   if systemctl is-active --quiet "wpa_supplicant"; then
+      if ! yesno_box 8 "WPA supplicant will be disabled. If you are SSH'd in via Wifi, connectivity may be lost. Continue?"; then
+         return 1
+      fi
+      systemctl disable --now wpa_supplicant > /dev/null 2>&1
+      systemctl stop wpa_supplicant
+   fi
+
    WLAN_IFACE=$(select_wlan_interfaces "Select Wifi access point interface")
    if [ $? -ne 0 ]; then
       return 1
